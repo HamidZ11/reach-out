@@ -1,1 +1,97 @@
 @import "tailwindcss";
+
+/*
+ * Reachout's locked design tokens (DESIGN.md › Colour, Typography, Surfaces;
+ * D-021, D-024). Values match the approved prototype exactly; change them only
+ * through a human design decision.
+ *
+ * Brand (ink blue) marks where you are and what you chose. Status colours —
+ * overdue, needs attention, in conversation — are semantic only and always
+ * come with words.
+ */
+:root {
+  --canvas: #ecebe7;
+  --sheet: #ffffff;
+  --tint: #f6f5f2;
+  --paper: #f8f5ed;
+  --line: #e7e5e0;
+  --line-strong: #d4d1ca;
+  --ink: #19181b;
+  --ink-2: #48474c;
+  --ink-3: #66656b;
+
+  --brand: #2753a8;
+  --brand-strong: #163f8e;
+  --brand-ink: #234993;
+  --brand-wash: #ecf1fb;
+  --brand-soft: #dee8fb;
+  --brand-line: #a4beef;
+
+  --attn: #f2b23b;
+  --attn-wash: #fcefd2;
+  --attn-ink: #744700;
+  --late: #b5381b;
+  --late-wash: #fbe7e0;
+  --good: #1d6b4a;
+  --good-wash: #e2f0e8;
+
+  --display: var(--font-bricolage), var(--font-hanken), system-ui, sans-serif;
+  --ui: var(--font-hanken), system-ui, sans-serif;
+
+  --r-s: 8px;
+  --r-m: 12px;
+  --r-l: 16px;
+  --r-xl: 22px;
+
+  --shadow-border:
+    0px 0px 0px 1px oklch(0 0 0 / 0.06), 0px 1px 2px -1px oklch(0 0 0 / 0.06),
+    0px 2px 4px 0px oklch(0 0 0 / 0.04);
+  --shadow-border-hover:
+    0px 0px 0px 1px oklch(0 0 0 / 0.08), 0px 1px 2px -1px oklch(0 0 0 / 0.08),
+    0px 2px 4px 0px oklch(0 0 0 / 0.06);
+  --shadow-lift: 0 0 0 1px oklch(0 0 0 / 0.05), 0 8px 20px -8px oklch(0 0 0 / 0.16);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* The app scrolls inside its own containers, so the page itself never bounces. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.5;
+  caret-color: var(--brand);
+  -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+button,
+a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}

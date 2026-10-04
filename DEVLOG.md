@@ -2,6 +2,25 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-04 · Production begins: app shell and Today
+
+On `feat/production-today`, from the design checkpoint `85149f5`.
+
+- **Shell:** the approved labelled rail on desktop, and the four-tab bar on phones (Today, People, Pursuing, Outreach), with Settings from the avatar. Links go to the real routes.
+- **Today, at `/today`:** the approved desktop composition (focus and Your day) and phone composition (focus first, up next, the rest, the person sheet).
+- **Data:** read through `getRepository()` and derived by `deriveToday`.
+- **Actions:** complete, snooze, approve, edit, write a draft and mark as sent run the domain rules on a session copy. Nothing is persisted until the first write path.
+- **Code:**
+  - tokens are on `:root` and the fonts load in `app/fonts.ts`;
+  - the prototype now re-exports the production modules (dates, icons, records, session store, Today wording) instead of duplicating them;
+  - a lint rule and a test keep production from importing the prototypes.
+- **Not built yet:** People, Onboarding, Pursuing, Outreach, Companies and Settings (still placeholders), and any persistence, auth, Gmail or AI.
+
+**Verified:**
+
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (119 tests) and `pnpm build`.
+- Every route in headless Chrome at 1440×900 and 390×844, with DOM measurements only: no errors or hydration warnings, no overflow, nothing under the tab bar.
+
 ## 2026-10-04 · Design checkpoint: everything approved and frozen
 
 The human approved every surface on desktop and phone (Today, People, Onboarding, Pursuing, Outreach, Companies, Settings), and the mobile navigation (D-024). Visual-system exploration is complete.

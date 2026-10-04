@@ -7,5 +7,9 @@ const section = SECTIONS.onboarding;
 export const metadata: Metadata = { title: section.label };
 
 export default function OnboardingPage() {
-  return <RoutePlaceholder title={section.label} question={section.question} />;
+  return (
+    <main>
+      <RoutePlaceholder title={section.label} question={section.question} />
+    </main>
+  );
 }

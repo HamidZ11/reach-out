@@ -1,0 +1,220 @@
+/*
+ * The approved app shell (DESIGN.md › Navigation). Desktop: an 84px labelled
+ * rail on the canvas, with content on one white sheet. Phone: the content
+ * scrolls on the canvas above a four-tab bar. Values match the prototype.
+ */
+
+.shell {
+  min-height: 100dvh;
+}
+
+/* ——— Desktop: rail and sheet ——— */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 0 14px;
+}
+
+.mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 22px;
+  place-items: center;
+  border-radius: var(--r-m);
+  background: var(--brand);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 2px rgb(22 63 142 / 0.3);
+  color: #fff;
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.navItem {
+  display: grid;
+  width: 64px;
+  justify-items: center;
+  gap: 5px;
+  padding: 6px 0 7px;
+  border-radius: 14px;
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.navIcon {
+  position: relative;
+  display: grid;
+  width: 44px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  transition-property: background-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.navItem[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.navItem[aria-current="page"] .navIcon {
+  background: var(--brand);
+  box-shadow: 0 1px 2px rgb(22 63 142 / 0.28);
+  color: #fff;
+}
+
+/* Something in Today needs you. */
+.navDot {
+  position: absolute;
+  top: 1px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--canvas);
+  border-radius: 50%;
+  background: var(--attn);
+  box-sizing: content-box;
+}
+
+.railFoot {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  margin-top: auto;
+}
+
+/* ——— Phone: four tabs, labelled; Companies is contextual, Settings opens from the avatar ——— */
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 8px 12px max(14px, calc(env(safe-area-inset-bottom, 0px) + 4px));
+  border-top: 1px solid var(--line);
+  background: var(--sheet);
+}
+
+.tab {
+  display: grid;
+  min-height: 56px;
+  justify-items: center;
+  align-content: center;
+  gap: 5px;
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tabIcon {
+  display: grid;
+  width: 56px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.tab[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.tab[aria-current="page"] .tabIcon {
+  background: var(--brand);
+  color: #fff;
+}
+
+.tab:active {
+  opacity: 0.8;
+}
+
+/* ——— Skip link: hidden until focused ——— */
+
+.skip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 40;
+  padding: 10px 14px;
+  border-radius: var(--r-m);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 650;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip:focus-visible {
+  transform: none;
+}
+
+/* ——— Which shell: desktop from 900px, phone below ——— */
+
+@media (min-width: 900px) {
+  .shell {
+    display: grid;
+    height: 100dvh;
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  .sheet {
+    min-width: 0;
+    min-height: 0;
+    margin: 10px 10px 10px 0;
+    overflow: hidden;
+    border-radius: var(--r-xl);
+    background: var(--sheet);
+    box-shadow: var(--shadow-border);
+  }
+
+  .tabs {
+    display: none;
+  }
+}
+
+@media (max-width: 899.98px) {
+  .shell {
+    display: flex;
+    height: 100dvh;
+    flex-direction: column;
+  }
+
+  .rail {
+    display: none;
+  }
+
+  /* The page scrolls here, above the tab bar, so nothing hides behind it. */
+  .sheet {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--line-strong) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navItem:not([aria-current]):hover {
+    color: var(--ink);
+  }
+
+  .navItem:not([aria-current]):hover .navIcon {
+    background: rgb(255 255 255 / 0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navIcon {
+    transition: none;
+  }
+}

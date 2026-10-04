@@ -61,13 +61,13 @@ const eslintConfig = defineConfig([
   ),
   restrictImports(
     ["src/features/**", "src/app/**"],
-    ["@/data/seed", "@/data/seed/**"],
-    "Features and routes must not know where records come from. Take a Repository, or call src/server.",
+    ["@/data/seed", "@/data/seed/**", "@/app/prototypes", "@/app/prototypes/**"],
+    "Features and routes must not know where records come from (take a Repository, or call src/server), and never import the disposable design prototypes.",
   ),
   restrictImports(
     ["src/components/**"],
-    ["@/data/**", "@/server/**", "@/features/**"],
-    "Shared components are presentational: no data access, server wiring or feature logic.",
+    ["@/data/**", "@/server/**", "@/features/**", "@/app/**"],
+    "Shared components are presentational: no data access, server wiring, feature logic or routes.",
   ),
   globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
 ]);

@@ -8,12 +8,11 @@ import OpportunitiesPage from "./(app)/opportunities/page";
 import OutreachPage from "./(app)/outreach/page";
 import PeoplePage from "./(app)/people/page";
 import SettingsPage from "./(app)/settings/page";
-import TodayPage from "./(app)/today/page";
 import OnboardingPage from "./onboarding/page";
 
-const pages: Record<SectionId, ComponentType> = {
+/** Sections still served by the placeholder. Today is built (see src/features/today). */
+const pages: Record<Exclude<SectionId, "today">, ComponentType> = {
   onboarding: OnboardingPage,
-  today: TodayPage,
   people: PeoplePage,
   opportunities: OpportunitiesPage,
   outreach: OutreachPage,
@@ -22,7 +21,7 @@ const pages: Record<SectionId, ComponentType> = {
 };
 
 describe("route scaffold", () => {
-  it.each(Object.entries(pages))("/%s renders its section placeholder", (id, Page) => {
+  it.each(Object.entries(pages))("/%s still renders its section placeholder", (id, Page) => {
     render(<Page />);
     const { label } = SECTIONS[id as SectionId];
     expect(screen.getByRole("heading", { level: 1, name: label })).toBeInTheDocument();

@@ -14,7 +14,7 @@ Reachout helps students and recent graduates create real opportunities through t
 | [ROADMAP.md](ROADMAP.md)           | To know which phase you are in and what is out of scope        |
 | [DEVLOG.md](DEVLOG.md)             | To see what happened recently; append an entry when you finish |
 
-Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Production routes are still placeholders; product implementation has not started. Outreach intelligence is future phase 9 (D-022).**
+Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Production implementation has started on `feat/production-today`: the app shell and Today are built (actions are session-only until the first write path). Every other production route is still a placeholder. Outreach intelligence is future phase 9 (D-022).**
 
 ## Workflow
 

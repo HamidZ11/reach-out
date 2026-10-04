@@ -2,15 +2,15 @@
 
 ## Stack
 
-| Concern         | Choice                                                                                         | Notes                                                                                                                                                                                     |
-| --------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework       | Next.js 16.3 (App Router, Turbopack), React 19.2                                               | `typedRoutes` on. Middleware is called **Proxy** in v16. Read `node_modules/next/dist/docs/` before using APIs (see AGENTS.md)                                                            |
-| Language        | TypeScript 5.9, strict + `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns` | TypeScript 7 not adopted yet (D-017)                                                                                                                                                      |
-| Styling         | Tailwind CSS 4                                                                                 | Only `@import "tailwindcss"` so far. Design tokens and fonts are defined in DESIGN.md and currently live in the prototype CSS modules; they move into the app when production UI is built |
-| Validation      | Zod 4                                                                                          | Domain schemas are the source of truth for record shapes                                                                                                                                  |
-| Tests           | Vitest 5, Testing Library, jsdom                                                               | Playwright once browser-critical flows exist (roadmap phase 2)                                                                                                                            |
-| Lint / format   | ESLint 9 (`eslint-config-next`), Prettier 3 + Tailwind plugin                                  | Zero warnings allowed; architecture boundaries are lint rules                                                                                                                             |
-| Package manager | pnpm 11, Node ≥ 24                                                                             |                                                                                                                                                                                           |
+| Concern         | Choice                                                                                         | Notes                                                                                                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework       | Next.js 16.3 (App Router, Turbopack), React 19.2                                               | `typedRoutes` on. Middleware is called **Proxy** in v16. Read `node_modules/next/dist/docs/` before using APIs (see AGENTS.md)                                                                  |
+| Language        | TypeScript 5.9, strict + `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns` | TypeScript 7 not adopted yet (D-017)                                                                                                                                                            |
+| Styling         | Tailwind CSS 4, CSS modules                                                                    | The locked tokens (DESIGN.md) are CSS variables on `:root` in `app/globals.css`; the fonts load in `app/fonts.ts`. Components style themselves with CSS modules carrying the prototype's values |
+| Validation      | Zod 4                                                                                          | Domain schemas are the source of truth for record shapes                                                                                                                                        |
+| Tests           | Vitest 5, Testing Library, jsdom                                                               | Playwright once browser-critical flows exist (roadmap phase 2)                                                                                                                                  |
+| Lint / format   | ESLint 9 (`eslint-config-next`), Prettier 3 + Tailwind plugin                                  | Zero warnings allowed; architecture boundaries are lint rules                                                                                                                                   |
+| Package manager | pnpm 11, Node ≥ 24                                                                             |                                                                                                                                                                                                 |
 
 Scripts: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck` (`next typegen && tsc`), `pnpm test`, `pnpm format`, `pnpm format:check`, and `pnpm check` (all of them in CI order).
 
@@ -25,8 +25,11 @@ src/
   data/         The Repository interface and its implementations.
     seed/       Seed dataset + in-memory repository (development and tests)
   server/       Server-only composition: auth boundary, getRepository(). The only place that picks a data source.
-  features/     Per product area: loaders (take a Repository) and, later, that area's UI.
-  components/   Shared presentational components (currently only RoutePlaceholder).
+  features/     Per product area: loaders (take a Repository) and that area's UI.
+    shell/      The app shell: desktop rail, phone tab bar.
+    workspace/  The user's records for the screens: loader, record index, session state.
+    today/      Today: wording, focus, actions, desktop and phone compositions.
+  components/   Shared presentational pieces: Avatar, icons, date wording, RoutePlaceholder.
   test/         Test setup and record builders.
 ```
 
@@ -48,7 +51,7 @@ server ──▶ data ───────┘
 | `features`, `app` | `@/data/seed` — they take a `Repository` or call `src/server` |
 | `components`      | `data`, `server`, `features`                                  |
 
-Test files are exempt so they can use seed data as fixtures.
+Test files are exempt so they can use seed data as fixtures. Production code never imports the design prototypes in `src/app/prototypes` (lint, plus `app/boundaries.test.ts`); the prototypes import production modules instead.
 
 ## Server / client boundary
 
@@ -56,6 +59,7 @@ Test files are exempt so they can use seed data as fixtures.
 - `src/server/*` begins with `import "server-only"`. Importing it into a Client Component fails the build.
 - Client Components (`"use client"`) receive plain, serialisable domain records as props. They never import `server/` or `data/`.
 - Mutations will be **Server Actions**. Each one validates its input with Zod, gets the repository via `getRepository()`, applies a pure domain function (e.g. `completeNextAction`), and persists the result. The action file stays thin; the rules live in `domain/`.
+- **Until that first write path exists (phase 2), nothing is persisted.** Today's actions apply the same domain functions to a session copy of the records (`features/workspace/use-workspace.ts`); a reload shows the Repository's data again.
 - Vitest cannot render async Server Components. Test their loaders (`features/*/load-*.ts`) directly, and cover full pages with Playwright later.
 
 ## Repository abstraction
@@ -93,7 +97,7 @@ Authentication is a hard requirement and is **not operational**. See [`src/serve
 
 - **Authenticated user:** a `Session` (`userId`, `method`) whose `userId` is a `User.id`. Sign-in identity belongs to the provider; the product profile is the `User` record.
 - **Where the session enters:** only through `getSession()` / `requireSession()`. `getRepository()` calls `requireSession()`, so every data read is authenticated by construction. Following Next's guidance, access control sits in this data access layer, not in layouts, because layouts do not re-run on navigation.
-- **Protected routes:** everything under `(app)/` and `/onboarding`. Today's pages are static placeholders that read no data. Once they read data, they are protected through `getRepository()`.
+- **Protected routes:** everything under `(app)/` and `/onboarding`. The `(app)` layout and `/today` read data through `getRepository()`, so they render per request and, in production, fail closed. The other pages are placeholders.
 - **Current behaviour:** outside production, every request is the seed user (`method: "development"`). In production, `getSession()` throws `AuthNotConfiguredError`, so an unconfigured deployment fails closed.
 - **Provider integration point (phase 6, likely Supabase Auth):**
   - `getSession()` reads the provider session from cookies and maps it to `Session`.

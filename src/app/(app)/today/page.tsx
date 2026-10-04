@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import { RoutePlaceholder } from "@/components/route-placeholder";
+import { connection } from "next/server";
 import { SECTIONS } from "@/features/sections";
+import { Today } from "@/features/today/today";
+import { loadWorkspace } from "@/features/workspace/load-workspace";
+import { getRepository } from "@/server/repository";
 
-const section = SECTIONS.today;
+export const metadata: Metadata = { title: SECTIONS.today.label };
 
-export const metadata: Metadata = { title: section.label };
-
-export default function TodayPage() {
-  return <RoutePlaceholder title={section.label} question={section.question} />;
+/** Today, read through the Repository and derived by the domain's rules. */
+export default async function TodayPage() {
+  await connection(); // per request: Today depends on the date and the user's records
+  const workspace = await loadWorkspace(await getRepository(), new Date());
+  return <Today workspace={workspace} />;
 }

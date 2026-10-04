@@ -1,0 +1,23 @@
+/* A person's initials on a muted tint chosen from their name. */
+.avatar {
+  display: grid;
+  width: var(--size, 36px);
+  height: var(--size, 36px);
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tint-bg, var(--tint));
+  color: var(--tint-ink, var(--ink));
+  font-size: calc(var(--size, 36px) * 0.36);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition-property: box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar {
+    transition: none;
+  }
+}
