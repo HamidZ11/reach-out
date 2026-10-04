@@ -45,6 +45,9 @@ Current status: **design checkpoint complete. Every surface is APPROVED and FROZ
   - **A change needs one of:** a bug fix, an accessibility issue, a responsive defect, an implementation constraint, or an explicit human design decision.
   - **Never:** reinterpret the palette, swap fonts, replace the navigation, "modernise" layouts, convert surfaces to generic shadcn, or add cards or pills for convenience.
 - **A genuinely new kind of surface still gets explored in isolation first** (within the locked system), rendered and shown to the human before production.
+- **No global single-key action shortcuts** (DESIGN.md › Accessibility).
+  - Every action needs explicit intent: click, tap, or Tab with Enter or Space; Escape closes dialogs and sheets.
+  - The prototype's J/K/E/S/A shortcuts are obsolete. Never copy them into production.
 - **Implementation passing tests ≠ visual approval.** Never describe UI as done, polished or production-ready on the strength of code, tests or a build.
 - **Human visual approval wins** over any skill's opinion, any reference, and your own taste.
 - **Do not take screenshots unless explicitly requested**, even when a skill suggests it. Ask first.

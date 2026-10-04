@@ -132,6 +132,36 @@ describe("production Today", () => {
     ).toBeInTheDocument();
   });
 
+  it("has no keyboard shortcuts: J, K, E, S and A change nothing, and no legend shows", () => {
+    const { desktop } = renderToday();
+    const press = () => {
+      for (const key of ["j", "k", "e", "s", "a", "J", "K", "E", "S", "A"]) {
+        fireEvent.keyDown(document, { key });
+      }
+    };
+
+    press();
+    expect(
+      desktop.getByRole("heading", {
+        level: 2,
+        name: "Follow up with Grace about interview timing",
+      }),
+    ).toBeInTheDocument();
+    expect(desktop.getByText("1 of 9")).toBeInTheDocument();
+    expect(desktop.getByRole("status")).toBeEmptyDOMElement();
+
+    // Not even with a draft in focus: approving takes a click.
+    const panel = within(desktop.getByRole("complementary", { name: "Your day" }));
+    fireEvent.click(panel.getByRole("button", { name: /Hannah Lindqvist.*Draft waiting/ }));
+    press();
+    expect(
+      desktop.getByRole("heading", { level: 2, name: "Approve your email to Hannah" }),
+    ).toBeInTheDocument();
+
+    expect(document.querySelector("kbd")).toBeNull();
+    expect(desktop.queryByText(/move ·|snooze ·/)).toBeNull();
+  });
+
   it("approve: a draft waiting for approval becomes ready to send", () => {
     const { desktop } = renderToday();
     const panel = within(desktop.getByRole("complementary", { name: "Your day" }));

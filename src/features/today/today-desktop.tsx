@@ -27,13 +27,6 @@ import s from "./today.module.css";
 import type { Focus } from "./use-focus";
 import { GROUPS, headline, lastExchange, rowLines, stableKey, statusFor } from "./wording";
 
-const isTyping = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable);
-
-/** Shortcuts belong to the desktop composition, which shows from 900px. */
-const isDesktop = () => window.matchMedia?.("(min-width: 900px)").matches ?? true;
-
 type Cell = { key: string; label: string; icon: ReactNode; body: ReactNode };
 
 function cellsView(cells: Cell[]) {
@@ -331,16 +324,15 @@ function DayPanel({ day, focus }: { day: WorkspaceState; focus: Focus }) {
           After today: {later.title} · {shortDay(later.dueOn)}
         </p>
       )}
-      <p className={s.shortcuts} aria-hidden="true">
-        <kbd className={s.kbd}>J</kbd>
-        <kbd className={s.kbd}>K</kbd> move · <kbd className={s.kbd}>E</kbd> done ·{" "}
-        <kbd className={s.kbd}>S</kbd> snooze · <kbd className={s.kbd}>A</kbd> approve
-      </p>
     </aside>
   );
 }
 
-/** Desktop Today: the current item dominates; the rest of the day waits beside it. */
+/**
+ * Desktop Today: the current item dominates; the rest of the day waits beside
+ * it. Every action is an explicit click or tap — there are no single-key
+ * shortcuts, which were too easy to trigger by accident.
+ */
 export function TodayDesktop({
   day,
   focus,
@@ -352,30 +344,6 @@ export function TodayDesktop({
 }) {
   const { announce, view: toast, acted } = announcer;
   const current = focus.current;
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (isTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (!isDesktop()) return;
-      const action = current?.action;
-      const draft = current?.draft;
-      if (event.key === "j") focus.step(1);
-      else if (event.key === "k") focus.step(-1);
-      else if (event.key === "e" && action?.status === "open") {
-        day.complete(action.id);
-        announce(`Done: ${action.title}.`);
-      } else if (event.key === "s" && action?.status === "open") {
-        const to = shortDay(day.snoozeTarget(action));
-        day.snooze(action.id);
-        announce(`Snoozed to ${to}.`);
-      } else if (event.key === "a" && draft?.status === "awaiting_approval") {
-        day.approve(draft.id);
-        announce("Approved. Send it yourself, then mark it as sent.");
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [current, day, focus, announce]);
 
   return (
     <div className={s.today}>

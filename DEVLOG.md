@@ -2,6 +2,15 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-04 · Today: keyboard shortcuts removed
+
+The human removed Today's single-key shortcuts (J/K/E/S/A) and their legend, which were too easy to trigger by accident.
+
+- Every Today action is now an explicit click or tap.
+- Buttons stay keyboard-operable (Tab with Enter or Space), and Escape still closes the person sheet.
+- The rule is durable: DESIGN.md › Accessibility and CLAUDE.md forbid global single-key action shortcuts.
+- The prototype keeps its old shortcuts as an obsolete reference that must not be copied.
+
 ## 2026-10-04 · Production begins: app shell and Today
 
 On `feat/production-today`, from the design checkpoint `85149f5`.

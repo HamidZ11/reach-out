@@ -204,6 +204,10 @@ Motion explains change and is never decoration. Most transitions are 150–260ms
 
 - **Standard:** WCAG 2.2 AA. Semantic HTML and landmarks, one `h1` per page, `lang="en-GB"`.
 - **Keyboard and focus:** every action is keyboard-operable, with a visible focus ring in the brand colour.
+- **No single-key shortcuts:**
+  - Actions need explicit intent: a click, a tap, or Tab with Enter or Space on a control. Escape closes dialogs and sheets.
+  - Global single-key action shortcuts are not part of Reachout; they were too easy to trigger by accident.
+  - The prototype's J/K/E/S/A shortcuts are obsolete and must not be copied into production.
 - **Status:** never conveyed by colour alone.
 - **Targets:** at least 24×24px; primary touch actions are 44–52px.
 - **Forms:** fields have labels; errors are tied to their fields and written as help, not blame.
@@ -227,11 +231,11 @@ Motion explains change and is never decoration. Most transitions are 150–260ms
 
 ## Directions explored
 
-| Direction     | Result                     | Why                                                                                                                             |
-| ------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **C · Focus** | **Approved**, then refined | Focus-first, relationship-first, warm and calm; reads as Reachout                                                               |
-| A · Briefing  | Rejected                   | Too editorial and passive; read like a reading product, not an outreach system                                                  |
-| B · Triage    | Rejected visually          | Too dense, dark, enterprise and CRM-like. Some structural ideas (tier grouping, acting in context, keyboard paths) survive in C |
+| Direction     | Result                     | Why                                                                                                                                              |
+| ------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **C · Focus** | **Approved**, then refined | Focus-first, relationship-first, warm and calm; reads as Reachout                                                                                |
+| A · Briefing  | Rejected                   | Too editorial and passive; read like a reading product, not an outreach system                                                                   |
+| B · Triage    | Rejected visually          | Too dense, dark, enterprise and CRM-like. Some structural ideas (tier grouping, acting in context) survive in C; its single-key shortcuts do not |
 
 The exploration prototypes stay in `src/app/prototypes/` until production UI replaces them.
 
