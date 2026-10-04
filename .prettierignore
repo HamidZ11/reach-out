@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+.next/
+out/
+coverage/
+next-env.d.ts
+
+# Generated or vendored agent tooling — owned by their installers.
+AGENTS.md
+.claude/
+.agents/
+skills-lock.json
