@@ -152,6 +152,13 @@ Three layers, never collapsed into one field:
 - Deterministic product logic — Today, outreach state, relationship status — never reads interpretations.
 - If the user adopts generated wording (for example as `whyRelevant`), it becomes a user note: the user is now asserting it.
 
+**Future outreach intelligence** (ROADMAP phase 9, not built) adds no entity:
+
+- A recommended angle is an `Interpretation` about the person, so it cites at least one source fact.
+- A recommended draft is a `Draft` with `origin: "generated"`. It is approved like any other draft, and appears in Today as one awaiting approval.
+- A suggested follow-up becomes a `NextAction` only when the user accepts it.
+- It reads stored records only. It never writes facts or notes, and deterministic rules still never read interpretations.
+
 ## Outreach state (derived)
 
 Where outreach to a person stands, from `deriveOutreachState` ([outreach.ts](src/domain/outreach.ts)). Evaluated in this order:

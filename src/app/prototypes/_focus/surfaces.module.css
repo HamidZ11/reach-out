@@ -1,0 +1,1663 @@
+/* C · Focus — the surfaces after Today and People: Pursuing, Outreach,
+   Companies and Settings. Built from the locked system (DESIGN.md, D-021):
+   tokens come from focus.module.css's .root, which every surface carries
+   through AppFrame or the mobile shell. Nothing here adds a colour, face,
+   radius or shadow of its own. */
+
+/* ——— Shared rows and blocks (desktop) ——— */
+
+.split {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.companies {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.listSummary {
+  margin: 6px 10px 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.rows {
+  display: grid;
+  gap: 2px;
+}
+
+.oppRow,
+.companyRow {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 6px;
+  border-radius: 14px;
+  color: var(--ink);
+  text-align: left;
+  transition-property: background-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.companyRow {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 7px 10px 7px 8px;
+}
+
+/* Selected: the same brand wash People uses. */
+.oppRow[aria-current="true"],
+.companyRow[aria-current="true"] {
+  background: var(--brand-wash);
+  box-shadow: inset 0 0 0 1px var(--brand-soft);
+}
+
+.oppRow[aria-current="true"] .oppRowTitle,
+.companyRow[aria-current="true"] .rowName {
+  color: var(--brand-ink);
+}
+
+.companyRow[aria-current="true"] .mark {
+  box-shadow:
+    0 0 0 2px var(--brand-wash),
+    0 0 0 3.5px var(--brand);
+}
+
+.oppRowTitle {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.rowName {
+  transition: color 150ms ease-out;
+}
+
+.closed {
+  margin-top: 22px;
+}
+
+.closedSummary {
+  margin: 0 10px 6px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.closedSummary span {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A company's mark: its initial on a quiet tile, so companies never look like people. */
+.mark {
+  display: grid;
+  width: var(--size, 34px);
+  height: var(--size, 34px);
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: calc(var(--size, 34px) / 4);
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+  color: var(--ink-2);
+  font-family: var(--display);
+  font-size: calc(var(--size, 34px) * 0.44);
+  font-weight: 650;
+  line-height: 1;
+  transition: box-shadow 150ms ease-out;
+}
+
+/* ——— Detail pages ——— */
+
+.detailHead,
+.companyHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 24px;
+}
+
+.companyHead {
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.detailHead p + p,
+.companyHead p + p {
+  margin-top: 10px;
+}
+
+.detailTitle {
+  max-width: 760px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 34px;
+  font-weight: 600;
+  font-stretch: 90%;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.inlineLink {
+  padding: 0;
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  transition-property: color, text-decoration-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.block {
+  max-width: 860px;
+  margin-top: 34px;
+}
+
+/* Where you are: a sentence, then the stages as a quiet path drawn like the
+   history timeline — a hairline with small nodes, one brand marker for now. */
+.stages {
+  max-width: 620px;
+}
+
+.stageNow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.stageWord {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.stageCount {
+  color: var(--ink-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stageTrack {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 9px;
+}
+
+.stage:not(:last-child)::after {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  left: 17px;
+  height: 1px;
+  background: var(--line-strong);
+  content: "";
+}
+
+.stage[data-state="done"]::after {
+  background: var(--ink-3);
+}
+
+.stageNode {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--sheet);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+}
+
+/* Passed: a small filled dot. Now: the brand marker, as on a map. */
+.stage[data-state="done"] .stageNode {
+  background: var(--ink-3);
+  box-shadow: inset 0 0 0 2px var(--sheet);
+}
+
+.stage[data-state="current"] .stageNode {
+  background: var(--brand);
+  box-shadow: 0 0 0 4px var(--brand-soft);
+}
+
+.stageName {
+  padding-right: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.stage[data-state="done"] .stageName {
+  color: var(--ink-2);
+}
+
+.stage[data-state="current"] .stageName {
+  color: var(--brand-ink);
+  font-weight: 700;
+}
+
+.stages[data-closed] .stageNode {
+  box-shadow: inset 0 0 0 1.5px var(--line);
+}
+
+.stages[data-closed] .stage::after {
+  background: var(--line);
+}
+
+.compact .stageNow {
+  margin-bottom: 12px;
+}
+
+.compact .stageName {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Progressive history on phones. */
+.showAll {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--brand-ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.after {
+  margin-top: 16px;
+  padding-left: 10px;
+}
+
+.afterLabel {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.afterList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.afterList li {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.afterTitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* People involved, read the way People reads them. */
+.peopleList {
+  display: grid;
+  max-width: 860px;
+}
+
+.personLine {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+
+.personLine:first-child {
+  padding-top: 2px;
+  border-top: 0;
+}
+
+.personLineText {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.personLineText > p {
+  margin-top: 6px;
+}
+
+.personLineName,
+.trackName,
+.quietName {
+  justify-self: start;
+  padding: 0;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  transition-property: color, text-decoration-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.personLineName,
+.trackName {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  font-stretch: 94%;
+  line-height: 1.25;
+}
+
+.personLineRole {
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.personLineWhy {
+  max-width: 68ch;
+  margin: 10px 0 0;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Companies: why it matters, said from the records. */
+.companyWhy {
+  max-width: 860px;
+  margin-top: 30px;
+}
+
+.companyWhyText {
+  margin: 10px 0 0;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 500;
+  font-stretch: 96%;
+  letter-spacing: -0.014em;
+  line-height: 1.36;
+  text-wrap: pretty;
+}
+
+.derived {
+  margin: 8px 0 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.pursuits {
+  display: grid;
+  max-width: 860px;
+}
+
+.pursuit {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 10px 4px;
+  border-radius: var(--r-l);
+  color: var(--ink);
+  text-align: left;
+  transition: background-color 150ms ease-out;
+}
+
+.pursuitTitle {
+  display: block;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.pursuit[data-closed] .pursuitTitle {
+  color: var(--ink-3);
+}
+
+/* ——— Outreach ——— */
+
+.outreach {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  height: 100%;
+  min-height: 0;
+}
+
+.section {
+  max-width: 800px;
+  margin-top: 44px;
+  scroll-margin-top: 24px;
+}
+
+.section:first-of-type {
+  margin-top: 32px;
+}
+
+.sectionHead {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Each state's mark, drawn like the history's nodes and coloured by meaning. */
+.stateMark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+  color: var(--ink-2);
+}
+
+.stateMark[data-tone="now"] {
+  background: var(--attn-wash);
+  box-shadow: inset 0 0 0 1px rgb(116 71 0 / 0.1);
+  color: var(--attn-ink);
+}
+
+.stateMark[data-tone="good"] {
+  background: var(--good-wash);
+  box-shadow: inset 0 0 0 1px rgb(29 107 74 / 0.12);
+  color: var(--good);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 600;
+  font-stretch: 94%;
+  letter-spacing: -0.012em;
+}
+
+.sectionTitle span {
+  color: var(--ink-3);
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionHint {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.tracks,
+.quietList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track {
+  padding: 24px 0 26px;
+  border-bottom: 1px solid var(--line);
+}
+
+.track:last-child {
+  border-bottom: 0;
+}
+
+.trackHead {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+/* An approved message is settled: it folds to a few lines until you ask. */
+.folded {
+  max-height: 9.6em;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+
+.trackMeta {
+  display: block;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trackStatus {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  text-align: right;
+}
+
+/* Content and actions sit under the name, aligned past the avatar. */
+.trackBody {
+  margin-left: 54px;
+}
+
+.quote {
+  max-width: 680px;
+  margin-top: 14px;
+}
+
+.quoteSubject {
+  margin: 0 0 4px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.quoteWhy {
+  margin: 6px 0 0;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.trackFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.trackFor {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.trackPlan {
+  margin: 10px 0 0 54px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.quietRow {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.quietRow:last-child {
+  border-bottom: 0;
+}
+
+.quietName {
+  font-size: 14px;
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.quietWhen {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.more {
+  max-width: 800px;
+  margin-top: 28px;
+}
+
+.moreSummary {
+  padding: 8px 0;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.moreSummary span {
+  margin-left: 4px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* How a message moves: the approved path, each step a way into its section. */
+.path {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pathStep {
+  position: relative;
+}
+
+.pathStep + .pathStep::before {
+  position: absolute;
+  top: -8px;
+  left: 21px;
+  width: 1px;
+  height: 12px;
+  background: var(--line-strong);
+  content: "";
+}
+
+.pathButton {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--r-l);
+  color: var(--ink);
+  text-align: left;
+  transition: background-color 150ms ease-out;
+}
+
+.pathButton:disabled {
+  cursor: default;
+}
+
+.pathNode {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sheet);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pathStep[data-empty] .pathNode {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-3);
+}
+
+.pathTitle {
+  display: block;
+  padding-top: 2px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pathStep[data-empty] .pathTitle {
+  color: var(--ink-3);
+}
+
+.pathRule {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* ——— Settings ——— */
+
+.settings {
+  height: 100%;
+  overflow-y: auto;
+  padding: 36px 56px 120px;
+}
+
+.setSection {
+  display: grid;
+  max-width: 920px;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 48px;
+  margin-top: 28px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+
+.setIntro {
+  min-width: 0;
+}
+
+.setTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  font-stretch: 94%;
+}
+
+.setDescription {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.setBody {
+  min-width: 0;
+  max-width: 560px;
+}
+
+/* Not built yet: said in words, never as a control that does nothing. */
+.later {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-3);
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.fields {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.fieldLabel {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.fieldHint {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-m);
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  transition-property: border-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.settings .input:focus-visible,
+.mSettings .input:focus-visible {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+  outline: none;
+}
+
+.settings .input[aria-invalid="true"],
+.mSettings .input[aria-invalid="true"] {
+  border-color: var(--attn);
+  box-shadow: 0 0 0 3px var(--attn-wash);
+}
+
+.problem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 0 0;
+  color: var(--attn-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.saveBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.defs {
+  display: grid;
+  margin: 0;
+}
+
+.def {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.def:first-child {
+  padding-top: 2px;
+}
+
+.def:last-child {
+  border-bottom: 0;
+}
+
+.defTerm {
+  color: var(--ink-3);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.defValue {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.plain {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.editor {
+  display: grid;
+  gap: 10px;
+}
+
+.targets {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  list-style: none;
+}
+
+.target {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 6px 0 12px;
+  font-size: 15px;
+}
+
+.target + .target {
+  border-top: 1px solid var(--line);
+}
+
+.remove {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ink-3);
+  transition-property: background-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.addRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.addRow > button {
+  height: 44px;
+}
+
+/* ——— Phone ——— */
+
+/* Long words (an email address in a draft) wrap instead of pushing the page sideways. */
+.mShell {
+  overflow-wrap: break-word;
+}
+
+/* The avatar keeps its 32px look; the button gives it a 44px target. */
+.mAvatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin: -6px -6px -6px 0;
+  place-items: center;
+  border-radius: 50%;
+  transition: scale 150ms ease-out;
+}
+
+.mAvatar:active,
+.mBack:active {
+  scale: 0.96;
+}
+
+.mBack {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  margin: -7px 0 -7px -10px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--r-m);
+  color: var(--brand-ink);
+  font-size: 15px;
+  font-weight: 650;
+  transition: scale 150ms ease-out;
+}
+
+.mDetailTitle {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 600;
+  font-stretch: 92%;
+  letter-spacing: -0.026em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.mFirst {
+  margin-top: 4px;
+}
+
+.mLabel {
+  margin: 0 4px 10px;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  font-stretch: 94%;
+}
+
+.mCard {
+  padding: 18px 16px 16px;
+  border-radius: 26px;
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+}
+
+/* Something to act on rises a little, like Today's focus card. */
+.mAction {
+  box-shadow: var(--shadow-lift);
+}
+
+.mGap {
+  margin-top: 12px;
+}
+
+.mQuiet {
+  margin: 0 4px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.mFootnote {
+  margin: 28px 4px 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.mWhyText {
+  margin: 8px 0 0;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.42;
+  text-wrap: pretty;
+}
+
+/* Rows on the approved white list, with a column for what needs you. */
+button.mOppRow,
+button.mCompanyRow {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+}
+
+button.mPersonRow {
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+}
+
+.mPersonRow svg,
+.mOppRow svg {
+  color: var(--ink-3);
+}
+
+.mMarkCell {
+  display: grid;
+  width: 44px;
+  height: 48px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--tint);
+  color: var(--ink-2);
+}
+
+.mClosedSummary {
+  margin: 0 4px 10px;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  font-stretch: 94%;
+  cursor: pointer;
+}
+
+.mClosedSummary span {
+  margin-left: 6px;
+}
+
+/* Headers that carry a person's avatar or a company's mark. */
+.mHeadingLead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.mHeadingText {
+  min-width: 0;
+}
+
+.mDeadline {
+  margin-left: 10px;
+  font-size: 14px;
+}
+
+.mWide {
+  width: 100%;
+  height: 48px;
+  justify-content: center;
+}
+
+/* Outreach on a phone: who, and what they need from you, in one readable line. */
+.mStateHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px 8px;
+}
+
+.mStateHead h2 {
+  flex: 1;
+}
+
+.mStateHead .stateMark {
+  width: 26px;
+  height: 26px;
+}
+
+/* Both rows keep the base row's two columns (avatar, then text), so they
+   can't fall apart however the grid resolves. Anything that belongs to the
+   person — their status, the way in — lives inside the text column. */
+button.mPeopleRow {
+  min-height: 64px;
+  grid-template-columns: 40px minmax(0, 1fr);
+}
+
+button.mTrackRow {
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+/* A person and their status read as one line: the status sits on the name's baseline. */
+.nameLine {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.nameLine > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lineState {
+  flex-shrink: 0;
+}
+
+.rowMain {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.rowMain > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.rowMain > svg {
+  flex-shrink: 0;
+}
+
+.mTrackList button.mTrackRow {
+  min-height: 60px;
+  gap: 12px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.mTrackRow svg {
+  color: var(--ink-3);
+}
+
+.mRowStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.mRowStatus[data-tone="late"] {
+  color: var(--late);
+}
+
+.mRowStatus[data-tone="now"] {
+  color: var(--attn-ink);
+}
+
+.mRowStatus[data-tone="good"] {
+  color: var(--good);
+}
+
+.mPlanned {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+/* People on a phone. */
+.mSearch {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+  color: var(--ink-3);
+}
+
+.mSearch:focus-within {
+  box-shadow:
+    var(--shadow-border),
+    0 0 0 2px var(--brand);
+}
+
+.mSearch input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.mSearch input::placeholder {
+  color: var(--ink-3);
+}
+
+.mSearch input:focus-visible {
+  outline: none;
+}
+
+.mGroupHead {
+  display: grid;
+  gap: 2px;
+  margin: 0 4px 10px;
+}
+
+.mGroupTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  font-stretch: 94%;
+  line-height: 1.3;
+}
+
+.mGroupTitle svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--brand);
+}
+
+.mGroupMeta {
+  padding-left: 21px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* A person's page: a shorter header, their standing in one line beneath it. */
+header.mHeadingTight {
+  padding-top: 12px;
+}
+
+header.mHeadingTrail {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+h1.mTightTitle {
+  font-size: 23px;
+  line-height: 1.12;
+}
+
+span.mTightSub {
+  margin-top: 3px;
+}
+
+.mContacts a {
+  width: 44px;
+  height: 44px;
+}
+
+.mStanding {
+  margin: 10px 4px 0;
+}
+
+/* Why they matter: still first, in the signature voice, folded to three lines. */
+.mWhyBlock {
+  margin: 18px 4px 0;
+}
+
+.mWhyStatement {
+  margin: 6px 0 0;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 500;
+  font-stretch: 96%;
+  letter-spacing: -0.008em;
+  line-height: 1.42;
+  text-wrap: pretty;
+}
+
+.clamp3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.mWhyMissing {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.pSection {
+  margin-top: 26px;
+}
+
+/* Context selectors outrank the approved list-row rule without touching it. */
+.pSection button.pRow {
+  min-height: 58px;
+}
+
+article.cCard textarea {
+  min-height: 96px;
+}
+
+.pHistory {
+  padding: 16px 14px 8px;
+}
+
+p.pNote {
+  padding: 12px 14px;
+}
+
+.pNoteLabel {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+/* Lower-priority knowledge folds into rows you open when you need them. */
+.pFolds {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pMore {
+  border-radius: var(--r-l);
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+}
+
+.pMoreSummary {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pMoreSummary::-webkit-details-marker {
+  display: none;
+}
+
+.pMoreSummary svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: rotate 150ms ease-out;
+}
+
+.pMore[open] .pMoreSummary svg {
+  rotate: 180deg;
+}
+
+.pMoreTitle {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.pMoreNote {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pMoreBody {
+  padding: 2px 14px 16px;
+}
+
+/* A compact action card: one part of a longer page, still with one clear action. */
+article.cCard {
+  padding: 14px;
+}
+
+.cHead {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.cHeadline {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  font-stretch: 94%;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.cStatus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+article.cCard div.cLetter {
+  margin-top: 12px;
+  padding: 12px 14px;
+  font-size: 14.5px;
+}
+
+.cActions {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cActions > a,
+.cActions > button {
+  width: 100%;
+  justify-content: center;
+}
+
+.cRow {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+}
+
+.cRow > a,
+.cRow > button {
+  height: 44px;
+  justify-content: center;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.mSubhead {
+  margin: 18px 4px 8px;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.mSubhead span {
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+/* Settings on a phone: plain stacked sections on the canvas. Only the rows you
+   change sit on a surface. */
+.mSettings .setSection {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 28px;
+  padding: 0 4px;
+  border-top: 0;
+}
+
+.mSettings .setDescription {
+  margin-top: 3px;
+}
+
+.mSettings .fields {
+  gap: 12px;
+}
+
+.mSettings .field {
+  gap: 5px;
+}
+
+.mSettings .problem {
+  margin-top: -4px;
+}
+
+.mSettings .setSection:first-child {
+  margin-top: 4px;
+}
+
+.mSettings .defs {
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+}
+
+.mSettings .def {
+  padding: 10px 0;
+}
+
+.mSettings .def:first-child {
+  padding-top: 10px;
+}
+
+.mSettings .targets {
+  background: var(--sheet);
+}
+
+.mSettings .saveBar {
+  margin-top: 14px;
+}
+
+.mSettings .saveBar > button {
+  height: 46px;
+  flex: 1;
+  justify-content: center;
+}
+
+.mSettings .setBody {
+  max-width: none;
+}
+
+.mSettings .pair {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mSettings .def {
+  grid-template-columns: minmax(0, 1fr) auto;
+  row-gap: 4px;
+}
+
+.mSettings .defValue {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.mSettings .def > button {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.mSettings .input,
+.mSettings .addRow > button {
+  height: 46px;
+}
+
+/* ——— Hover, only with a mouse ——— */
+
+@media (hover: hover) and (pointer: fine) {
+  .oppRow:not([aria-current="true"]):hover,
+  .companyRow:not([aria-current="true"]):hover,
+  .pathButton:not(:disabled):hover {
+    background: rgb(255 255 255 / 0.7);
+  }
+
+  .pursuit:hover {
+    background: var(--tint);
+  }
+
+  .inlineLink:hover,
+  .personLineName:hover,
+  .trackName:hover,
+  .quietName:hover {
+    color: var(--brand-ink);
+    text-decoration-color: currentColor;
+  }
+
+  .remove:hover {
+    background: var(--tint);
+    color: var(--ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oppRow,
+  .companyRow,
+  .mark,
+  .inlineLink,
+  .personLineName,
+  .trackName,
+  .quietName,
+  .pursuit,
+  .pathButton,
+  .input,
+  .remove,
+  .mAvatar,
+  .mBack {
+    transition: none;
+  }
+}

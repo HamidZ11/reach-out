@@ -14,7 +14,7 @@ Reachout helps students and recent graduates create real opportunities through t
 | [ROADMAP.md](ROADMAP.md)           | To know which phase you are in and what is out of scope        |
 | [DEVLOG.md](DEVLOG.md)             | To see what happened recently; append an entry when you finish |
 
-Current status: **phase 0 done. Phase 1, visual design exploration, is next. VISUAL DIRECTION: UNSETTLED.**
+Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Production routes are still placeholders; product implementation has not started. Outreach intelligence is future phase 9 (D-022).**
 
 ## Workflow
 
@@ -28,7 +28,7 @@ Current status: **phase 0 done. Phase 1, visual design exploration, is next. VIS
 6. **Verify:** `pnpm check` (format, lint, typecheck, test, build). All must pass. Report failures honestly, with output.
 7. **Review:** reread your diff against these rules and the docs.
 8. **Approve:** a human approves. Visual work needs human approval of the rendered result.
-9. **Commit:** only after approval, and only when asked. Never push without being asked. No remote exists yet.
+9. **Commit:** only after approval, and only when asked. Never push without being asked. The remote is `origin` on GitHub; never force-push or push to `main` unasked.
 
 ## Rules
 
@@ -41,12 +41,14 @@ Current status: **phase 0 done. Phase 1, visual design exploration, is next. VIS
 
 ### Design
 
-- **VISUAL DIRECTION: UNSETTLED.** Until DESIGN.md says otherwise, do not choose fonts, colours, radii, shadows, spacing scales, layout systems, navigation styling or motion.
-- **Uncertain or major visual work requires isolated design exploration first**, on a separate branch or worktree, with genuinely different options rendered and shown to the human.
+- **The design is frozen (DESIGN.md › Design freeze, D-024).** Reproduce the approved prototype: its colours, type, surfaces, navigation, date tiles and mobile patterns.
+  - **A change needs one of:** a bug fix, an accessibility issue, a responsive defect, an implementation constraint, or an explicit human design decision.
+  - **Never:** reinterpret the palette, swap fonts, replace the navigation, "modernise" layouts, convert surfaces to generic shadcn, or add cards or pills for convenience.
+- **A genuinely new kind of surface still gets explored in isolation first** (within the locked system), rendered and shown to the human before production.
 - **Implementation passing tests ≠ visual approval.** Never describe UI as done, polished or production-ready on the strength of code, tests or a build.
 - **Human visual approval wins** over any skill's opinion, any reference, and your own taste.
 - **Do not take screenshots unless explicitly requested**, even when a skill suggests it. Ask first.
-- Design skills have single responsibilities (DESIGN.md › Tooling). Don't stack them on one surface without naming the lead. Never let a component library become the visual identity, and do not run `boardui init` before the design phase approves BoardUI.
+- Design skills have single responsibilities (DESIGN.md › Tooling). Don't stack them on one surface without naming the lead. Never let a component library become the visual identity, and do not run `boardui init` (D-021).
 - Route placeholders are to be **replaced** by designed screens, never decorated.
 
 ### Architecture

@@ -1,0 +1,132 @@
+/* Harness chrome: deliberately neutral, system font, not part of any direction. */
+
+.bar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 40px;
+  padding: 0 12px;
+  background: #0d0d0d;
+  color: rgba(255, 255, 255, 0.55);
+  font:
+    12px/1 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.title {
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.tab[aria-current="page"],
+.tab[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.devices {
+  display: flex;
+  gap: 2px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.tab:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 1px;
+}
+
+.note {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.stage {
+  --chrome: 40px;
+  padding-top: 40px;
+}
+
+.phoneStage {
+  display: grid;
+  min-height: calc(100vh - 40px);
+  padding: 72px 16px 112px;
+  place-items: center;
+  background: #cfcfcb;
+}
+
+.phone {
+  --chrome: 0px;
+  position: relative;
+  width: 390px;
+  height: min(844px, calc(100vh - 224px));
+  min-height: 600px;
+  overflow: hidden;
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.14),
+    0 24px 60px rgba(0, 0, 0, 0.2);
+}
+
+.missing {
+  max-width: 320px;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.6);
+  font:
+    13px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .note,
+  .title {
+    display: none;
+  }
+
+  .tabs {
+    overflow-x: auto;
+  }
+
+  .devices {
+    padding-left: 8px;
+  }
+
+  .phoneStage {
+    padding: 40px 0 0;
+  }
+
+  .phone {
+    width: 100%;
+    height: calc(100vh - 40px);
+    height: calc(100dvh - 40px);
+    min-height: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}

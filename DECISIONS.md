@@ -38,7 +38,7 @@ Every data read passes through `requireSession()` inside `getRepository()`. Unti
 
 AI may later summarise, explain relevance, suggest angles, draft and suggest follow-ups. It may only produce `Interpretation` records (labelled, citing facts, user-reviewed) and `generated` drafts that still need approval. Source facts, user notes and generated interpretation stay separate. **Why:** trust, and the product must stay fully useful without an LLM. **Consequence:** no AI SDK or provider yet. Every AI feature needs its own decision entry.
 
-## D-010 · Visual direction is deliberately deferred
+## D-010 · Visual direction is deliberately deferred — _Superseded by D-021_
 
 The foundation chooses no typography, colour, density, layout, navigation appearance, component style or motion. A dedicated design phase explores several genuinely different concepts, renders them with real data, and the human chooses one. **Why:** premature visual decisions harden into the product's identity by default. **Consequence:** route files are unstyled placeholders. See DESIGN.md.
 
@@ -74,7 +74,7 @@ Next.js 16.3.8's own template pins these versions. TypeScript 7 and ESLint 10 ex
 
 **Why:** it changes how dynamic, per-user reads must be structured, and there are no real per-user reads yet. **Consequence:** decide in phase 6, when sessions and real data arrive.
 
-## D-019 · Design tooling is installed but inert until the design phase
+## D-019 · Design tooling is installed but inert until the design phase — _Superseded by D-021_
 
 - better-ui, emil-design-eng and Impeccable are user-level skills that only run when explicitly invoked.
 - crafted-frontend-ui is the owner's personal user-level skill.
@@ -86,3 +86,117 @@ Next.js 16.3.8's own template pins these versions. TypeScript 7 and ESLint 10 ex
 ## D-020 · Roadmap order: Accounts and persistence after the core loop; Companies alongside Opportunities
 
 The brief's separate Authentication and Persistence phases are merged into one, because with Supabase they share ownership and RLS design. That phase follows the core loop (onboarding through outreach). Companies ships with Opportunities, because every opportunity creates or links one. **Why:** fewer phases, no throwaway ordering. **Consequence:** feature phases 2–5 add write methods behind an in-memory repository that is explicitly non-durable. See ROADMAP.md.
+
+## D-021 · Direction C ("Focus") is approved and the visual system is locked
+
+_2026-10-04 · Accepted_
+
+After exploring three directions and two refinement passes, the human approved Direction C as Reachout's visual language. DESIGN.md now records the locked system:
+
+- a warm neutral canvas with one white sheet;
+- ink-blue brand for location, selection and opportunities;
+- marigold, red and green for status only;
+- Bricolage Grotesque with Hanken Grotesk;
+- restrained rounded surfaces and black primary actions;
+- a labelled rail on desktop and a bottom tab bar on mobile;
+- the date tile as a selective timing device;
+- focus-first Today and relationship-first People, with "Why X matters" as a signature concept;
+- facts, notes and interpretation visibly separated.
+
+Rejected:
+
+- **A · Briefing:** too editorial and passive.
+- **B · Triage:** visually too dense, dark and enterprise or CRM-like. Some of its structural ideas survive in C.
+
+BoardUI may supply individual behavioural primitives only, re-skinned with Reachout's tokens; `boardui init` is not run. **Onboarding is the next design surface**, built with this system.
+
+**Why:** C makes "what should I do next, and why does this person matter" the centre of the product.
+
+**Consequence:**
+
+- New surfaces follow DESIGN.md rather than re-exploring.
+- Changing the locked system needs a reason and the human's agreement.
+- This supersedes D-010 (direction deferred) and D-019 (tooling inert).
+
+## D-022 · Outreach intelligence is the long-term direction for AI: documented, not built
+
+_2026-10-04 · Accepted_
+
+Reachout's future assistance is **outreach intelligence**. It uses context the user has already stored to propose one grounded outreach angle and one grounded draft for a person, with why the angle was chosen and when to follow up. That context covers:
+
+- the person and why they matter;
+- the linked opportunity and the user's goal;
+- source facts and the user's notes;
+- relationship history, prior outreach and the open next action;
+- interpretations.
+
+It is not "AI writes cold emails".
+
+- **Boundary:**
+  - assistive and grounded in stored context only;
+  - one recommended angle and one draft, both editable;
+  - explicit approval before sending;
+  - no autonomous outreach, auto-send, batch generation, scraping or enrichment.
+- **Model:** no new entity. The angle is an `Interpretation`; the draft is a `Draft` with `origin: "generated"` (DOMAIN.md).
+- **Sequencing:** ROADMAP phase 9, after the core surfaces, accounts and persistence, Gmail, and launch preparation. It is not part of the MVP.
+
+**Why:** it is where the product started, and it should strengthen thoughtful outreach rather than automate volume.
+
+**Consequence:**
+
+- No AI SDK, provider or model call is added now.
+- Building it needs a further entry approved by the human: provider, handling of third-party data, and evaluation.
+- This refines D-009 rather than replacing it.
+
+## D-023 · The core visual system is approved on desktop and phone; exploration is complete
+
+_2026-10-04 · Accepted_
+
+The human approved these surfaces, rendered:
+
+- Today, desktop and phone;
+- People, desktop;
+- onboarding, desktop and phone.
+
+They are frozen references for the rest of the product. Visual-system exploration, which began in phase 1 and finished with the onboarding design in phase 2, is complete.
+
+The remaining core surfaces are built with the locked system as prototypes in review: Pursuing (Opportunities), Outreach, Companies and Settings. Their rules:
+
+- **Navigation:** Settings joins the foot of the desktop rail. On a phone, it opens from the avatar; Companies opens from an opportunity.
+- **No new language:** no new colours, faces, radii or patterns.
+- **Honest settings:** features that don't exist yet are marked in words, never shown as controls that do nothing.
+
+**Why:** the remaining work is building, not exploring. Every new surface should read as one product.
+
+**Consequence:**
+
+- Approved surfaces change only for a shared-system bug, with the human's agreement.
+- The four new surfaces need human visual approval before they move towards production.
+- People on a phone is still to be designed.
+
+## D-024 · Every surface is approved on desktop and phone; the design is frozen
+
+_2026-10-04 · Accepted_
+
+The human approved, rendered:
+
+- **Surfaces:** Today, People, Onboarding, Pursuing, Outreach, Companies and Settings, on desktop and on phone.
+- **Mobile navigation:**
+  - the bottom bar is Today, People, Pursuing, Outreach;
+  - Companies opens from an opportunity, and Settings from the avatar.
+
+Visual-system exploration is complete. Direction C stays approved, and the rejection of A and B stands (D-021). The C prototype is the authoritative reference for implementation. This completes D-023: its surfaces in review are now approved.
+
+**Freeze:** approved surfaces change only for a bug, an accessibility issue, a responsive defect, an implementation constraint, or an explicit human design decision. Implementation must not:
+
+- reinterpret the palette or swap the fonts;
+- replace the navigation or the mobile patterns;
+- modernise layouts or convert surfaces to generic components;
+- add cards or pills for convenience.
+
+**Why:** the remaining work is building the approved product, not redesigning it.
+
+**Consequence:**
+
+- Production work reproduces the prototype (DESIGN.md › Design freeze).
+- The favicon and app icon wait until the Reachout mark is approved for production.

@@ -2,7 +2,7 @@
 
 A personal outreach operating system for university students and recent graduates: find the right people, understand them, write something worth replying to, follow up, and turn conversations into opportunities. "Reachout" is a working name.
 
-**Status:** phase 0 (foundation) is complete. The UI is intentionally undesigned. Visual design exploration is next.
+**Status:** the foundation and the design are complete. Every surface is approved and frozen, on desktop and phone. The authoritative design reference is the prototype at `/prototypes/directions?v=3` (development only, with a Desktop/Phone switch). Production routes are still placeholders.
 
 ```sh
 pnpm install

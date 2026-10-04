@@ -60,7 +60,7 @@ Reachout is **not** Apollo or Instantly for students, a spam cannon, a generic C
 | Companies     | Who and what do I have at each organisation?             |
 | Settings      | What am I aiming for, and how should the product behave? |
 
-Onboarding sits outside the main area. How the navigation looks is undecided (see [DESIGN.md](DESIGN.md)).
+Onboarding sits outside the main area. Navigation appearance is defined in [DESIGN.md](DESIGN.md).
 
 ### Today
 
@@ -76,7 +76,7 @@ Today is never empty while an open next action exists. From it the user can comp
 
 ## Onboarding
 
-Onboarding is first-class product functionality. It is part of the product, not a tour. Its visual design is undecided; its information flow is:
+Onboarding is first-class product functionality. It is part of the product, not a tour. Its information flow is:
 
 1. **What are you trying to get?** Internship, graduate role, startup role, research opportunity, mentorship, or other.
 2. **Target roles**
@@ -118,9 +118,30 @@ Gmail is the first integration after the core is complete.
 ## Future capabilities (not commitments)
 
 - Gmail, then Outlook: send approved drafts and detect replies.
-- AI assistance: summarising facts, explaining relevance, suggesting an angle, drafting, suggesting a follow-up. Always labelled, citing facts, and reviewed by the user.
+- Outreach intelligence (below): one grounded angle and one grounded draft, built from what the user has already stored.
 - User-initiated import, such as a CSV or the user's own LinkedIn data export file.
 - Calendar awareness for meetings.
+
+## Future direction: outreach intelligence
+
+Reachout began as a way to help someone write strong cold outreach to useful people. Once the core product, accounts, persistence and email foundations exist, the context already stored in Reachout should help the user decide **who is worth contacting, why they are relevant, which angle is strongest, what to send, and when to follow up.**
+
+The idea is not "AI writes cold emails". Reachout understands the person, the opportunity, the user's goal, the source facts, the user's notes and the relationship so far. From that it proposes **one grounded outreach angle and one grounded draft.**
+
+- **Inputs, all already stored:**
+  - the person's role and company, and why they matter;
+  - the linked opportunity and the user's goal;
+  - source facts and the user's notes;
+  - relationship history, prior outreach and the open next action;
+  - existing interpretations.
+- **Output:** one recommended angle, with why it was chosen and the facts it rests on, and one draft built on that angle. Specific, contextual and concise; never generic or spammy.
+- **Boundary:**
+  - assistive only: the user edits the draft and explicitly approves it before anything is sent;
+  - no autonomous outreach, auto-send, batch generation, scraping or enrichment;
+  - nothing beyond what the user has stored.
+- **Model:** it fits the existing records. The angle is an `Interpretation`; the draft is a `Draft` with `origin: "generated"` ([DOMAIN.md](DOMAIN.md#research-context-facts-notes-interpretation)).
+
+It is scheduled after launch preparation (ROADMAP phase 9) and is not part of the MVP (D-022).
 
 ## Product risks
 
