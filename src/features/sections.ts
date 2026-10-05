@@ -1,4 +1,5 @@
 import type { Route } from "next";
+import type { PersonId } from "@/domain/ids";
 
 /**
  * The V1 information architecture: the product's areas and the question each
@@ -54,3 +55,11 @@ export const APP_SECTION_IDS = [
   "companies",
   "settings",
 ] as const satisfies readonly SectionId[];
+
+/** The query parameter that names the person People shows. It carries an id, never a name. */
+export const PERSON_PARAM = "person";
+
+/** Where a person lives: People, with them selected (`/people?person=<id>`). */
+export function personHref(id: PersonId): Route {
+  return `${SECTIONS.people.href}?${new URLSearchParams({ [PERSON_PARAM]: id })}`;
+}

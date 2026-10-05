@@ -27,6 +27,8 @@ describe("production boundaries", () => {
 
   it("finds production sources to check", () => {
     expect(files.some((f) => f.endsWith(join("features", "today", "today.tsx")))).toBe(true);
+    expect(files.some((f) => f.endsWith(join("features", "people", "people.tsx")))).toBe(true);
+    expect(files.some((f) => f.endsWith(join("app", "(app)", "people", "page.tsx")))).toBe(true);
   });
 
   it("features, components and routes never import seed data", () => {

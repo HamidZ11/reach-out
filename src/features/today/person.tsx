@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { ago, clock, dayOf, delta, shortDay } from "@/components/dates";
 import * as Icon from "@/components/icons";
@@ -144,84 +144,112 @@ function eventHead(
   }
 }
 
-function History({ person, day }: { person: Person; day: WorkspaceState }) {
+/** Shared by Today's person sheet and People. */
+export function History({
+  person,
+  day,
+  initial,
+  dense = false,
+}: {
+  person: Person;
+  day: WorkspaceState;
+  /** Phones: show the newest few, with a way to see the rest. Otherwise everything shows. */
+  initial?: number;
+  /** Phones: set the history closer together. */
+  dense?: boolean;
+}) {
+  const [all, setAll] = useState(false);
   const first = firstName(person.name);
   const tz = day.user.timeZone;
-  const history = day.index.historyOf(person.id).toReversed();
-  const drafts = day.index.pendingDraftsFor(person.id);
+  const everything = day.index.historyOf(person.id).toReversed();
+  const pending = day.index.pendingDraftsFor(person.id);
+  const cap = initial === undefined || all ? Infinity : initial;
+  const drafts = pending.slice(0, cap);
+  const history = everything.slice(0, Math.max(0, cap - drafts.length));
+  const hidden = pending.length + everything.length - drafts.length - history.length;
   // Where it began: when you added them, or your first exchange if that came earlier.
   const added = dayOf(person.createdAt, tz);
-  const earliest = history.at(-1);
+  const earliest = everything.at(-1);
   const firstContact = earliest ? dayOf(earliest.occurredAt, tz) : added;
   const found = firstContact < added ? firstContact : added;
 
   return (
-    <ol className={s.timeline}>
-      {drafts.map((d) => (
-        <li key={d.id} className={s.event} data-kind="draft">
-          <span className={s.eventDate}>
-            <span className={s.eventMonth}>Not sent</span>
-          </span>
-          <span className={s.node} data-kind="draft">
-            <Icon.Pen size={15} weight={2} />
-          </span>
-          <div className={s.eventBody}>
-            <p className={s.eventHead}>
-              Draft {d.channel === "email" ? "email" : "message"}
-              <span className={s.eventMeta}>
-                {d.status === "approved" ? "approved, not sent" : "waiting for your approval"}
-              </span>
-            </p>
-            <div className={s.draftBox}>{d.body}</div>
-          </div>
-        </li>
-      ))}
-      {history.map((i) => {
-        const head = eventHead(i, first);
-        const date = dayOf(i.occurredAt, tz);
-        const recent = delta(date, day.today) <= 2;
-        const subject =
-          (i.kind === "message_sent" || i.kind === "message_received") && i.subject
-            ? i.subject
-            : undefined;
-        const meta = [
-          i.kind === "note" ? undefined : channelOf(i),
-          recent ? clock(i.occurredAt, tz) : undefined,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        return (
-          <li key={i.id} className={s.event} data-kind={head.kind}>
-            <DateMark date={date} />
-            <span className={s.node} data-kind={head.kind}>
-              {head.icon}
+    <>
+      <ol className={s.timeline} data-dense={dense || undefined}>
+        {drafts.map((d) => (
+          <li key={d.id} className={s.event} data-kind="draft">
+            <span className={s.eventDate}>
+              <span className={s.eventMonth}>Not sent</span>
+            </span>
+            <span className={s.node} data-kind="draft">
+              <Icon.Pen size={15} weight={2} />
             </span>
             <div className={s.eventBody}>
               <p className={s.eventHead}>
-                {head.title}
-                {meta && <span className={s.eventMeta}>{meta}</span>}
-                <span className="sr-only">, {shortDay(date)}</span>
+                Draft {d.channel === "email" ? "email" : "message"}
+                <span className={s.eventMeta}>
+                  {d.status === "approved" ? "approved, not sent" : "waiting for your approval"}
+                </span>
               </p>
-              {subject && <p className={s.eventSubject}>“{subject}”</p>}
-              <p className={s.eventText}>{i.summary}</p>
+              <div className={s.draftBox}>{d.body}</div>
             </div>
           </li>
-        );
-      })}
-      <li className={s.event} data-kind="origin">
-        <DateMark date={found} />
-        <span className={s.node} data-kind="origin">
-          <Icon.Compass size={15} weight={2} />
-        </span>
-        <div className={s.eventBody}>
-          <p className={s.eventHead}>
-            You found {first}
-            <span className="sr-only">, {shortDay(found)}</span>
-          </p>
-          <p className={s.eventText}>{sourceText(person)}</p>
-        </div>
-      </li>
-    </ol>
+        ))}
+        {history.map((i) => {
+          const head = eventHead(i, first);
+          const date = dayOf(i.occurredAt, tz);
+          const recent = delta(date, day.today) <= 2;
+          const subject =
+            (i.kind === "message_sent" || i.kind === "message_received") && i.subject
+              ? i.subject
+              : undefined;
+          const meta = [
+            i.kind === "note" ? undefined : channelOf(i),
+            recent ? clock(i.occurredAt, tz) : undefined,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <li key={i.id} className={s.event} data-kind={head.kind}>
+              <DateMark date={date} />
+              <span className={s.node} data-kind={head.kind}>
+                {head.icon}
+              </span>
+              <div className={s.eventBody}>
+                <p className={s.eventHead}>
+                  {head.title}
+                  {meta && <span className={s.eventMeta}>{meta}</span>}
+                  <span className="sr-only">, {shortDay(date)}</span>
+                </p>
+                {subject && <p className={s.eventSubject}>“{subject}”</p>}
+                <p className={s.eventText}>{i.summary}</p>
+              </div>
+            </li>
+          );
+        })}
+        {hidden === 0 && (
+          <li className={s.event} data-kind="origin">
+            <DateMark date={found} />
+            <span className={s.node} data-kind="origin">
+              <Icon.Compass size={15} weight={2} />
+            </span>
+            <div className={s.eventBody}>
+              <p className={s.eventHead}>
+                You found {first}
+                <span className="sr-only">, {shortDay(found)}</span>
+              </p>
+              <p className={s.eventText}>{sourceText(person)}</p>
+            </div>
+          </li>
+        )}
+      </ol>
+      {hidden > 0 && (
+        <button type="button" className={s.mMore} onClick={() => setAll(true)}>
+          Show {hidden} earlier {hidden === 1 ? "moment" : "moments"}
+          <Icon.ChevronDown size={14} weight={2} />
+        </button>
+      )}
+    </>
   );
 }
 

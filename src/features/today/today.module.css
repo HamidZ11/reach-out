@@ -1345,6 +1345,67 @@
   left: calc(38px + 14px + 15.5px);
 }
 
+/* People on a phone: the same history, set closer. Opt-in through
+   data-dense, so desktop and the person sheet are unchanged. */
+.timeline[data-dense] .event {
+  grid-template-columns: 34px 26px minmax(0, 1fr);
+  column-gap: 10px;
+  padding-bottom: 16px;
+}
+
+.timeline[data-dense] .event::before {
+  top: 30px;
+  left: calc(34px + 10px + 12.5px);
+}
+
+.timeline[data-dense] .eventDate {
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.timeline[data-dense] .eventDay {
+  font-size: 15px;
+}
+
+.timeline[data-dense] .node {
+  width: 26px;
+  height: 26px;
+}
+
+.timeline[data-dense] .node svg {
+  width: 13px;
+  height: 13px;
+}
+
+.timeline[data-dense] .eventBody {
+  padding-top: 3px;
+}
+
+.timeline[data-dense] .eventMeta {
+  font-size: 12px;
+}
+
+.timeline[data-dense] .eventSubject {
+  margin-top: 1px;
+  font-size: 13.5px;
+}
+
+.timeline[data-dense] .eventText {
+  margin-top: 2px;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.timeline[data-dense] .draftBox {
+  display: -webkit-box;
+  margin-top: 6px;
+  padding: 10px 12px;
+  overflow: hidden;
+  font-size: 14px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 .scrim {
   position: absolute;
   inset: 0;

@@ -8,7 +8,7 @@ import { ago, longDay, shortDay } from "@/components/dates";
 import * as Icon from "@/components/icons";
 import { addDays } from "@/domain/time";
 import { TODAY_RULES } from "@/domain/today";
-import { SECTIONS } from "@/features/sections";
+import { personHref } from "@/features/sections";
 import type { ItemContext } from "@/features/workspace/records";
 import {
   channelOf,
@@ -208,7 +208,7 @@ function FocusItem({
         <div className={s.who}>
           <Avatar name={person.name} size={40} />
           <div className={s.whoText}>
-            <Link href={SECTIONS.people.href} className={s.whoName}>
+            <Link href={personHref(person.id)} className={s.whoName}>
               {person.name}
             </Link>
             <span className={s.whoMeta}>

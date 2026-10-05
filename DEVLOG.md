@@ -2,6 +2,46 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-05 · People: functional cleanup
+
+This pass changed behaviour only, with no visual change. People is now approved at desktop, ~1024px and phone widths.
+
+- **The person is in the URL:** `/people?person=<id>`, an id never a name.
+  - Desktop selection replaces the history entry. Opening a person on a phone pushes one, so Back returns to the list.
+  - A refresh keeps the person. The People tab returns to the list. Unknown or malformed ids fall back to the default person.
+- **Today → People:** Today's person link opens that exact person.
+- **Read all:** shows only when the why is actually cut off. It is measured before paint and again when the width changes; the old 110-character rule is gone.
+- **Copy:** "Nothing planned yet." replaces wording that promised a way to add a next step.
+- **Still no arrow-key or single-key navigation.**
+
+**Verified:** `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build`, plus headless Chrome (DOM only) at desktop, ~1024px and phone widths.
+
+## 2026-10-05 · People in production
+
+On `feat/production-people`. `/people` now shows the approved People experience in place of the placeholder. It reproduces the C prototype; nothing was redesigned.
+
+- **Desktop:**
+  - a list grouped by opportunity, with search, status in words and the brand selected row;
+  - beside it, the person: header and standing, "Why X matters", Next, Between you, and what you know.
+  - What you know keeps sourced facts, your notes and generated interpretation visibly apart.
+- **Phone:**
+  - the list: count and who needs you, search, opportunity groups, and one-line name and status;
+  - one person at a time under Back: the compact header, why first with Read all, a compact Next card, what it's for, dense history with Show earlier, open notes, and facts and the suggested angle behind disclosures.
+- **Data:** read through `getRepository()` with research context. Grouping and search are pure functions in `features/people/groups.ts`; status comes from Today's items and the outreach state.
+- **Actions:** Today's own verbs (write, approve, edit, mark sent, mark done, snooze), applied by the domain rules to the session only. Nothing is persisted.
+- **Shared with Today:** People reuses Today's history, standing, contact actions, date tile, action machinery and shared styles. History gained an opt-in phone mode (newest few, Show earlier, denser spacing); Today's person sheet is unchanged.
+- **Keyboard:** no shortcuts. The prototype's arrow-key list movement was not carried over: Tab, Enter and Space operate every control. Back returns focus to the row you opened.
+- **Responsive adaptation (approved):** between 900 and 1280px, "What you know" moves under the story instead of squeezing the history column. Up to 1180px the person's padding tightens, as on Today.
+- **Not built:** adding and editing people, and Pursuing, Outreach, Companies, Settings and Onboarding in production.
+
+**Verified:**
+
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (139 tests) and `pnpm build`.
+- Headless Chrome, DOM measurements only:
+  - People at 1440, 1280, 1180, 1024 and 900px wide, and at 390, 320 and 700px on a phone;
+  - every route on desktop and phone.
+- No errors or hydration warnings, no overflow, and nothing under the tab bar. Today is unchanged.
+
 ## 2026-10-04 · Today: keyboard shortcuts removed
 
 The human removed Today's single-key shortcuts (J/K/E/S/A) and their legend, which were too easy to trigger by accident.

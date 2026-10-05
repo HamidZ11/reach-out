@@ -6,14 +6,12 @@ import { SECTIONS } from "@/features/sections";
 import CompaniesPage from "./(app)/companies/page";
 import OpportunitiesPage from "./(app)/opportunities/page";
 import OutreachPage from "./(app)/outreach/page";
-import PeoplePage from "./(app)/people/page";
 import SettingsPage from "./(app)/settings/page";
 import OnboardingPage from "./onboarding/page";
 
-/** Sections still served by the placeholder. Today is built (see src/features/today). */
-const pages: Record<Exclude<SectionId, "today">, ComponentType> = {
+/** Sections still served by the placeholder. Today and People are built (see src/features). */
+const pages: Record<Exclude<SectionId, "today" | "people">, ComponentType> = {
   onboarding: OnboardingPage,
-  people: PeoplePage,
   opportunities: OpportunitiesPage,
   outreach: OutreachPage,
   companies: CompaniesPage,

@@ -66,9 +66,11 @@ describe("production Today", () => {
         ],
       },
     ]);
+    // The person links to People with them selected: by id, never by name.
+    const grace = workspace.people.find((p) => p.name === "Grace Whitfield");
     expect(desktop.getByRole("link", { name: "Grace Whitfield" })).toHaveAttribute(
       "href",
-      "/people",
+      `/people?person=${grace?.id}`,
     );
   });
 

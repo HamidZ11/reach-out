@@ -1,0 +1,841 @@
+/*
+ * People, as approved (DESIGN.md › People, Mobile; the C prototype is the
+ * reference). Rules are the prototype's own values, carried over unchanged;
+ * shared primitives (rows, buttons, tiles, the phone frame) come from
+ * today.module.css, and tokens from :root in app/globals.css.
+ *
+ * Shared components keep their own modules, so where a rule here reaches into
+ * one (the selected avatar ring, the standing line) it does so structurally.
+ */
+
+/* ——— Desktop: the list beside the person ——— */
+
+.people {
+  display: grid;
+  grid-template-columns: 296px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.list {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 26px 10px 120px;
+  border-right: 1px solid var(--line);
+  background: var(--tint);
+}
+
+.listHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 10px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  margin: 14px 4px 4px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--sheet);
+  color: var(--ink-3);
+}
+
+.search:focus-within {
+  border-color: var(--brand-line);
+}
+
+.search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.search input::placeholder {
+  color: var(--ink-3);
+}
+
+.search input:focus-visible {
+  outline: none;
+}
+
+.group {
+  margin-top: 22px;
+}
+
+.groupHead {
+  display: grid;
+  margin: 0 10px 6px;
+  gap: 1px;
+}
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.groupTitle svg {
+  flex-shrink: 0;
+  color: var(--brand);
+}
+
+.groupMeta {
+  display: block;
+  padding-left: 18px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.personRow {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 8px;
+  border-radius: 14px;
+  text-align: left;
+  transition-property: background-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+/* Selected person: a brand wash, and the avatar ringed in the brand. */
+.personRow[aria-current="true"] {
+  background: var(--brand-wash);
+  box-shadow: inset 0 0 0 1px var(--brand-soft);
+}
+
+.personRow[aria-current="true"] .pName {
+  color: var(--brand-ink);
+}
+
+/* The avatar (a shared component) is the row's first child. */
+.personRow[aria-current="true"] > :first-child {
+  box-shadow:
+    0 0 0 2px var(--brand-wash),
+    0 0 0 3.5px var(--brand);
+}
+
+.pName {
+  display: block;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pRole {
+  display: block;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowState {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rowState[data-tone="late"] {
+  color: var(--late);
+}
+
+.rowState[data-tone="now"] {
+  color: var(--attn-ink);
+}
+
+.rowState[data-tone="good"] {
+  color: var(--good);
+}
+
+.empty {
+  margin: 20px 10px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .personRow:not([aria-current="true"]):hover {
+    background: rgb(255 255 255 / 0.7);
+  }
+}
+
+.profile {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 38px 44px 120px;
+}
+
+.profileInner {
+  max-width: 1080px;
+  animation: swap 180ms var(--ease-out);
+}
+
+.personHead {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.personName {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 38px;
+  font-weight: 600;
+  font-stretch: 90%;
+  letter-spacing: -0.032em;
+  line-height: 1.04;
+}
+
+.personRole {
+  margin: 6px 0 0;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.personRole b {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+/* The standing line (a shared component) follows the role. */
+.personRole + p {
+  margin-top: 10px;
+}
+
+.whyMissing {
+  margin: 10px 0 0;
+  color: var(--ink-3);
+  font-size: 15px;
+}
+
+/* The one contained block on the page: what to do next. */
+.next {
+  display: grid;
+  max-width: 860px;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+  padding: 10px 14px 10px 10px;
+  border-radius: var(--r-xl);
+  background: var(--tint);
+}
+
+.nextTitle {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.nextMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 3px 0 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.nextPanel {
+  max-width: 860px;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 56px;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+}
+
+/* What you know, kept beside the story as you read it. */
+.side {
+  position: sticky;
+  top: 24px;
+  display: grid;
+}
+
+.sideBlock + .sideBlock {
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.opp {
+  display: grid;
+  gap: 2px;
+}
+
+.opp + .opp {
+  margin-top: 14px;
+}
+
+.oppMeta {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.also {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+/* Source facts: numbered, each with where it came from. */
+.facts {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.badge {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--tint);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.source svg {
+  flex-shrink: 0;
+}
+
+.source a {
+  color: inherit;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.subhead {
+  margin: 18px 0 10px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+/* Your notes: in your own voice, on warm paper. */
+.note {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px rgb(120 98 50 / 0.12);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Generated interpretation: dashed, cited, never dressed as fact. */
+.generated {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.generated + .generated {
+  margin-top: 10px;
+}
+
+.genMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.muted {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .source a:hover {
+    color: var(--brand-ink);
+    text-decoration-color: currentColor;
+  }
+}
+
+@keyframes swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* ——— Phone: the list, then one person at a time ——— */
+
+/* Long words (an email address in a draft) wrap instead of pushing the page sideways. */
+.mShell {
+  overflow-wrap: break-word;
+}
+
+/* Back to the list: a 44px target, pressed like every button. */
+.mBack {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  margin: -7px 0 -7px -10px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--r-m);
+  color: var(--brand-ink);
+  font-size: 15px;
+  font-weight: 650;
+  transition: scale 150ms ease-out;
+}
+
+.mBack:active {
+  scale: 0.96;
+}
+
+.mDetailTitle {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 600;
+  font-stretch: 92%;
+  letter-spacing: -0.026em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+/* Focused when the page opens, like Today's headline: a heading needs no ring. */
+.mDetailTitle:focus-visible {
+  outline: none;
+}
+
+.mCard {
+  padding: 18px 16px 16px;
+  border-radius: 26px;
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+}
+
+/* Something to act on rises a little, like Today's focus card. */
+.mAction {
+  box-shadow: var(--shadow-lift);
+}
+
+.mQuiet {
+  margin: 0 4px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+/* Rows on the approved white list, with a column for what needs you. */
+a.mOppRow {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+}
+
+.mOppRow svg {
+  color: var(--ink-3);
+}
+
+/* Headers that carry a person's avatar or a company's mark. */
+.mHeadingLead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.mHeadingText {
+  min-width: 0;
+}
+
+/* Both rows keep the base row's two columns (avatar, then text), so they
+   can't fall apart however the grid resolves. Anything that belongs to the
+   person — their status, the way in — lives inside the text column. */
+button.mPeopleRow {
+  min-height: 64px;
+  grid-template-columns: 40px minmax(0, 1fr);
+}
+
+/* A person and their status read as one line: the status sits on the name's baseline. */
+.nameLine {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.nameLine > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lineState {
+  flex-shrink: 0;
+}
+
+/* People on a phone. */
+.mSearch {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+  color: var(--ink-3);
+}
+
+.mSearch:focus-within {
+  box-shadow:
+    var(--shadow-border),
+    0 0 0 2px var(--brand);
+}
+
+.mSearch input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.mSearch input::placeholder {
+  color: var(--ink-3);
+}
+
+.mSearch input:focus-visible {
+  outline: none;
+}
+
+.mGroupHead {
+  display: grid;
+  gap: 2px;
+  margin: 0 4px 10px;
+}
+
+.mGroupTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  font-stretch: 94%;
+  line-height: 1.3;
+}
+
+.mGroupTitle svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--brand);
+}
+
+.mGroupMeta {
+  padding-left: 21px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* A person's page: a shorter header, their standing in one line beneath it. */
+header.mHeadingTight {
+  padding-top: 12px;
+}
+
+header.mHeadingTrail {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+h1.mTightTitle {
+  font-size: 23px;
+  line-height: 1.12;
+}
+
+span.mTightSub {
+  margin-top: 3px;
+}
+
+.mContacts a {
+  width: 44px;
+  height: 44px;
+}
+
+.mStanding {
+  margin: 10px 4px 0;
+}
+
+/* Why they matter: still first, in the signature voice, folded to three lines. */
+.mWhyBlock {
+  margin: 18px 4px 0;
+}
+
+.mWhyStatement {
+  margin: 6px 0 0;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 500;
+  font-stretch: 96%;
+  letter-spacing: -0.008em;
+  line-height: 1.42;
+  text-wrap: pretty;
+}
+
+.clamp3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.mWhyMissing {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.pSection {
+  margin-top: 26px;
+}
+
+/* Context selectors outrank the approved list-row rule without touching it. */
+.pSection a.pRow {
+  min-height: 58px;
+}
+
+article.cCard textarea {
+  min-height: 96px;
+}
+
+.pHistory {
+  padding: 16px 14px 8px;
+}
+
+p.pNote {
+  padding: 12px 14px;
+}
+
+.pNoteLabel {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+/* Lower-priority knowledge folds into rows you open when you need them. */
+.pFolds {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pMore {
+  border-radius: var(--r-l);
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+}
+
+.pMoreSummary {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pMoreSummary::-webkit-details-marker {
+  display: none;
+}
+
+.pMoreSummary svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: rotate 150ms ease-out;
+}
+
+.pMore[open] .pMoreSummary svg {
+  rotate: 180deg;
+}
+
+.pMoreTitle {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.pMoreNote {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pMoreBody {
+  padding: 2px 14px 16px;
+}
+
+/* A compact action card: one part of a longer page, still with one clear action. */
+article.cCard {
+  padding: 14px;
+}
+
+.cHead {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.cHeadline {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  font-stretch: 94%;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.cStatus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+article.cCard div.cLetter {
+  margin-top: 12px;
+  padding: 12px 14px;
+  font-size: 14.5px;
+}
+
+.cActions {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cActions > a,
+.cActions > button {
+  width: 100%;
+  justify-content: center;
+}
+
+.cRow {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+}
+
+.cRow > a,
+.cRow > button {
+  height: 44px;
+  justify-content: center;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profileInner {
+    animation: none;
+  }
+
+  .personRow,
+  .mBack {
+    transition: none;
+  }
+}
+
+/* ——— Production: after the prototype rules, so these refinements win ——— */
+
+/* Narrower desktops keep the composition; what you know moves under the story. */
+@media (min-width: 900px) and (max-width: 1279.98px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+
+  .side {
+    position: static;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .profile {
+    padding: 32px 36px 120px;
+  }
+}
