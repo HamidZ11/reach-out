@@ -5,6 +5,7 @@ import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate } from "@/domain/time";
 import type { Workspace } from "@/features/workspace/records";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
+import { currentPath, syncSearchParamsWithHistory, visit } from "@/test/navigation";
 import { People } from "./people";
 
 /**
@@ -13,29 +14,7 @@ import { People } from "./people";
  * to the desktop or phone layout.
  */
 
-// Next.js keeps useSearchParams in step with the native history methods and
-// with Back. This stands in for that: the hook reads the jsdom URL.
-vi.mock("next/navigation", async () => {
-  const { useMemo, useSyncExternalStore } = await import("react");
-  const subscribe = (onChange: () => void) => {
-    window.addEventListener("popstate", onChange);
-    window.addEventListener("navigated", onChange);
-    return () => {
-      window.removeEventListener("popstate", onChange);
-      window.removeEventListener("navigated", onChange);
-    };
-  };
-  return {
-    useSearchParams() {
-      const search = useSyncExternalStore(
-        subscribe,
-        () => window.location.search,
-        () => "",
-      );
-      return useMemo(() => new URLSearchParams(search), [search]);
-    },
-  };
-});
+vi.mock("next/navigation", () => import("@/test/navigation"));
 
 let workspace: Workspace;
 const idOf = (name: string) => {
@@ -43,7 +22,7 @@ const idOf = (name: string) => {
   if (!person) throw new Error(`No ${name} in the seed`);
   return person.id;
 };
-const at = () => `${window.location.pathname}${window.location.search}`;
+const at = currentPath;
 
 beforeAll(async () => {
   const anchor = calendarDate("2026-10-05");
@@ -58,23 +37,12 @@ beforeAll(async () => {
     unobserve() {}
     disconnect() {}
   };
-  for (const method of ["pushState", "replaceState"] as const) {
-    const native = window.history[method].bind(window.history);
-    window.history[method] = (...args: Parameters<History["pushState"]>) => {
-      native(...args);
-      window.dispatchEvent(new Event("navigated"));
-    };
-  }
+  syncSearchParamsWithHistory();
 });
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/people");
 });
-
-/** As if the browser had loaded or refreshed this address. */
-function visit(path: string) {
-  window.history.replaceState(null, "", path);
-}
 
 /** jsdom has no layout: give the why statement the height it would have when folded. */
 function layOutWhy({ overflows }: { overflows: boolean }) {
@@ -502,6 +470,19 @@ describe("production People — the person in the URL", () => {
     act(() => window.history.pushState(null, "", "/people"));
     expect(phone.getByRole("heading", { level: 1, name: "People" })).toBeInTheDocument();
     expect(phone.getByRole("button", { name: /^Sofia Petrova/ })).toBeInTheDocument();
+  });
+
+  it("phone: what a person is for links to that exact opportunity in Pursuing", () => {
+    const { phone } = renderPeople();
+    fireEvent.click(phone.getByRole("button", { name: /^Hannah Lindqvist/ }));
+    const forSection = phone.getByRole("region", { name: "For" });
+    const opportunity = workspace.opportunities.find((o) =>
+      o.personIds.includes(idOf("Hannah Lindqvist")),
+    );
+    expect(within(forSection).getByRole("link")).toHaveAttribute(
+      "href",
+      `/opportunities?opportunity=${opportunity?.id}`,
+    );
   });
 
   it("the session survives moving between people: an approval stays approved", () => {

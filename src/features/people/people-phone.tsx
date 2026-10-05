@@ -4,21 +4,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
-import { delta, shortDay } from "@/components/dates";
+import { shortDay } from "@/components/dates";
 import * as Icon from "@/components/icons";
 import type { PersonId } from "@/domain/ids";
-import { isPreApplication } from "@/domain/opportunity";
-import type { Opportunity } from "@/domain/opportunity";
 import type { Person } from "@/domain/person";
-import type { CalendarDate } from "@/domain/time";
-import { TODAY_RULES } from "@/domain/today";
-import { SECTIONS } from "@/features/sections";
-import { DateTile, tileFor } from "@/features/today/date-tile";
-import type { ActionSpec, Announce, Announcer } from "@/features/today/item-actions";
-import { ActionButton, useItemActions } from "@/features/today/item-actions";
+import { opportunityHref, SECTIONS } from "@/features/sections";
+import { DateTile, deadlineTone, liveDeadline, tileFor } from "@/features/today/date-tile";
+import type { Announce, Announcer } from "@/features/today/item-actions";
+import { ActionButton, thumbLabel, useItemActions } from "@/features/today/item-actions";
 import { ContactActions, History, Standing, Status } from "@/features/today/person";
 import t from "@/features/today/today.module.css";
-import type { Tone } from "@/features/today/wording";
 import { headline, personState, stableKey } from "@/features/today/wording";
 import type { ItemContext } from "@/features/workspace/records";
 import { countWord, firstName, STAGE_LABEL } from "@/features/workspace/records";
@@ -33,24 +28,6 @@ import type { PersonSelection } from "./selection";
  * columns become a flow. The person reads in order of what matters: why they
  * matter, what's next, what it's for, what has happened, what you know.
  */
-
-/** Labels that fit two to a thumb-width row, as on Today. */
-function thumbLabel(spec: ActionSpec): ActionSpec {
-  if (spec.id === "snooze") return { ...spec, label: spec.label.split(" ").slice(0, 3).join(" ") };
-  if (spec.id === "open") return { ...spec, label: "Open posting" };
-  return spec;
-}
-
-/** A deadline is worth a tile only before applying, and only while it's still ahead. */
-function liveDeadline(o: Opportunity, today: CalendarDate): CalendarDate | undefined {
-  return isPreApplication(o) && o.deadline && o.deadline >= today ? o.deadline : undefined;
-}
-
-/** Coloured with the same window Today uses for deadlines. */
-function deadlineTone(deadline: CalendarDate, today: CalendarDate): Tone {
-  const d = delta(today, deadline);
-  return d <= 1 ? "late" : d <= TODAY_RULES.deadlineWindowDays ? "now" : undefined;
-}
 
 /** Today's verbs as a compact card: one part of a longer page, still with one clear action. */
 function CompactAction({
@@ -242,10 +219,7 @@ function PersonPage({
               const deadline = liveDeadline(o, day.today);
               return (
                 <li key={o.id}>
-                  <Link
-                    href={SECTIONS.opportunities.href}
-                    className={`${t.row} ${p.mOppRow} ${p.pRow}`}
-                  >
+                  <Link href={opportunityHref(o.id)} className={`${t.row} ${p.mOppRow} ${p.pRow}`}>
                     {deadline ? (
                       <DateTile small date={deadline} tone={deadlineTone(deadline, day.today)} />
                     ) : (
@@ -322,7 +296,7 @@ function PersonPage({
 }
 
 /** Your avatar in the top bar opens Settings, which has no tab of its own. */
-function SettingsLink({ name }: { name: string }) {
+export function SettingsLink({ name }: { name: string }) {
   return (
     <Link href={SECTIONS.settings.href} className={t.mAvatar} aria-label="Settings">
       <Avatar name={name} size={32} />

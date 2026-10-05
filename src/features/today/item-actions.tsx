@@ -207,6 +207,13 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
   };
 }
 
+/** Labels that fit two to a thumb-width row on a phone: "Snooze to Mon 5 Oct" → "Snooze to Mon". */
+export function thumbLabel(spec: ActionSpec): ActionSpec {
+  if (spec.id === "snooze") return { ...spec, label: spec.label.split(" ").slice(0, 3).join(" ") };
+  if (spec.id === "open") return { ...spec, label: "Open posting" };
+  return spec;
+}
+
 export function ActionButton({
   spec,
   variant,

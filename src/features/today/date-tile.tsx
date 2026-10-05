@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
-import { dayOf, shortDay } from "@/components/dates";
+import { dayOf, delta, shortDay } from "@/components/dates";
 import * as Icon from "@/components/icons";
+import type { Opportunity } from "@/domain/opportunity";
+import { isPreApplication } from "@/domain/opportunity";
 import type { CalendarDate } from "@/domain/time";
+import { TODAY_RULES } from "@/domain/today";
 import type { ItemContext } from "@/features/workspace/records";
 import type { WorkspaceState } from "@/features/workspace/use-workspace";
 import s from "./today.module.css";
@@ -91,4 +94,15 @@ export function tileFor(ctx: ItemContext, day: WorkspaceState, small = false) {
       );
     }
   }
+}
+
+/** A deadline is worth a tile only before applying, and only while it's still ahead. */
+export function liveDeadline(o: Opportunity, today: CalendarDate): CalendarDate | undefined {
+  return isPreApplication(o) && o.deadline && o.deadline >= today ? o.deadline : undefined;
+}
+
+/** Coloured with the same window Today uses for deadlines. */
+export function deadlineTone(deadline: CalendarDate, today: CalendarDate): Tone {
+  const d = delta(today, deadline);
+  return d <= 1 ? "late" : d <= TODAY_RULES.deadlineWindowDays ? "now" : undefined;
 }

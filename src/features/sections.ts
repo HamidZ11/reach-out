@@ -1,5 +1,5 @@
 import type { Route } from "next";
-import type { PersonId } from "@/domain/ids";
+import type { CompanyId, OpportunityId, PersonId } from "@/domain/ids";
 
 /**
  * The V1 information architecture: the product's areas and the question each
@@ -62,4 +62,23 @@ export const PERSON_PARAM = "person";
 /** Where a person lives: People, with them selected (`/people?person=<id>`). */
 export function personHref(id: PersonId): Route {
   return `${SECTIONS.people.href}?${new URLSearchParams({ [PERSON_PARAM]: id })}`;
+}
+
+/** The query parameter that names the opportunity Pursuing shows. An id, never a title. */
+export const OPPORTUNITY_PARAM = "opportunity";
+
+/** Where an opportunity lives: Pursuing, with it selected (`/opportunities?opportunity=<id>`). */
+export function opportunityHref(id: OpportunityId): Route {
+  return `${SECTIONS.opportunities.href}?${new URLSearchParams({ [OPPORTUNITY_PARAM]: id })}`;
+}
+
+/**
+ * Where a company lives (`/companies?company=<id>`). `from` is the opportunity
+ * a phone came from, so Companies can return to it. The Companies route is
+ * still a placeholder and does not read these yet.
+ */
+export function companyHref(id: CompanyId, from?: OpportunityId): Route {
+  const params = new URLSearchParams({ company: id });
+  if (from) params.set("from", from);
+  return `${SECTIONS.companies.href}?${params}`;
 }

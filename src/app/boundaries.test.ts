@@ -29,6 +29,10 @@ describe("production boundaries", () => {
     expect(files.some((f) => f.endsWith(join("features", "today", "today.tsx")))).toBe(true);
     expect(files.some((f) => f.endsWith(join("features", "people", "people.tsx")))).toBe(true);
     expect(files.some((f) => f.endsWith(join("app", "(app)", "people", "page.tsx")))).toBe(true);
+    expect(files.some((f) => f.endsWith(join("features", "pursuing", "pursuing.tsx")))).toBe(true);
+    expect(files.some((f) => f.endsWith(join("app", "(app)", "opportunities", "page.tsx")))).toBe(
+      true,
+    );
   });
 
   it("features, components and routes never import seed data", () => {

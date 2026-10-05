@@ -111,7 +111,8 @@ export function ContactActions({ person }: { person: Person }) {
 
 /* ——— Between you: the relationship story, newest first, ending where it began ——— */
 
-function DateMark({ date }: { date: CalendarDate }) {
+/** The history's typographic date column: day over month. Never a date tile. */
+export function DateMark({ date }: { date: CalendarDate }) {
   return (
     <span className={s.eventDate} aria-hidden="true">
       <span className={s.eventDay}>{Number(date.slice(8, 10))}</span>

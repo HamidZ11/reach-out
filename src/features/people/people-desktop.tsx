@@ -22,8 +22,8 @@ import type { PersonSelection } from "./selection";
 
 /* ——— What to do next with this person ——— */
 
-/** Today is asking something of this person: act on it here, with Today's verbs. */
-function NextFromToday({
+/** Today is asking something of this person or opportunity: act on it here, with Today's verbs. */
+export function NextFromToday({
   ctx,
   day,
   announce,
@@ -63,7 +63,7 @@ function NextFromToday({
 }
 
 /** A step planned further out than Today looks. */
-function PlannedStep({
+export function PlannedStep({
   action,
   day,
   announce,

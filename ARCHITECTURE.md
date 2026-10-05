@@ -30,6 +30,7 @@ src/
     workspace/  The user's records for the screens: loader, record index, session state.
     today/      Today: wording, focus, actions, desktop and phone compositions.
     people/     People: grouping and search, knowledge, desktop and phone compositions. Reuses Today's actions.
+    pursuing/   Pursuing (route /opportunities): timing groups, stage path, activity, desktop and phone compositions.
   components/   Shared presentational pieces: Avatar, icons, date wording, RoutePlaceholder.
   test/         Test setup and record builders.
 ```
@@ -60,9 +61,13 @@ Test files are exempt so they can use seed data as fixtures. Production code nev
 - `src/server/*` begins with `import "server-only"`. Importing it into a Client Component fails the build.
 - Client Components (`"use client"`) receive plain, serialisable domain records as props. They never import `server/` or `data/`.
 - Mutations will be **Server Actions**. Each one validates its input with Zod, gets the repository via `getRepository()`, applies a pure domain function (e.g. `completeNextAction`), and persists the result. The action file stays thin; the rules live in `domain/`.
-- **Until that first write path exists (phase 2), nothing is persisted.** Today's and People's actions apply the same domain functions to a session copy of the records (`features/workspace/use-workspace.ts`); a reload shows the Repository's data again.
+- **Until that first write path exists (phase 2), nothing is persisted.** Today's, People's and Pursuing's actions apply the same domain functions to a session copy of the records (`features/workspace/use-workspace.ts`); a reload shows the Repository's data again.
 - Vitest cannot render async Server Components. Test their loaders (`features/*/load-*.ts`) directly, and cover full pages with Playwright later.
-- **What a link or a refresh must keep lives in the URL, by id.** People's selected person is `/people?person=<id>`: build it with `personHref` (`features/sections.ts`), and read it with `useSearchParams`, validated with Zod. Unknown ids fall back to a default. Desktop selection replaces the history entry; opening a person on a phone pushes one, so Back returns to the list. The native history methods keep `useSearchParams` in step without a server round trip.
+- **What a link or a refresh must keep lives in the URL, by id.**
+  - People's selected person is `/people?person=<id>`; Pursuing's selected opportunity is `/opportunities?opportunity=<id>`. Build links with `personHref` and `opportunityHref` (`features/sections.ts`), never with names or titles.
+  - Screens read the id through `useUrlSelection` (`features/workspace/use-url-selection.ts`), validated with Zod. Unknown ids fall back to a default.
+  - Desktop selection replaces the history entry; opening a record on a phone pushes one, so Back returns to the list. The native history methods keep `useSearchParams` in step without a server round trip.
+  - `companyHref(id, from)` is the contract for the future Companies page: `from` is the opportunity a phone came from, so Back can return to it. The Companies placeholder does not read it yet.
 
 ## Repository abstraction
 
@@ -99,7 +104,7 @@ Authentication is a hard requirement and is **not operational**. See [`src/serve
 
 - **Authenticated user:** a `Session` (`userId`, `method`) whose `userId` is a `User.id`. Sign-in identity belongs to the provider; the product profile is the `User` record.
 - **Where the session enters:** only through `getSession()` / `requireSession()`. `getRepository()` calls `requireSession()`, so every data read is authenticated by construction. Following Next's guidance, access control sits in this data access layer, not in layouts, because layouts do not re-run on navigation.
-- **Protected routes:** everything under `(app)/` and `/onboarding`. The `(app)` layout, `/today` and `/people` read data through `getRepository()`, so they render per request and, in production, fail closed. The other pages are placeholders.
+- **Protected routes:** everything under `(app)/` and `/onboarding`. The `(app)` layout, `/today`, `/people` and `/opportunities` read data through `getRepository()`, so they render per request and, in production, fail closed. The other pages are placeholders.
 - **Current behaviour:** outside production, every request is the seed user (`method: "development"`). In production, `getSession()` throws `AuthNotConfiguredError`, so an unconfigured deployment fails closed.
 - **Provider integration point (phase 6, likely Supabase Auth):**
   - `getSession()` reads the provider session from cookies and maps it to `Session`.

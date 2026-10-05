@@ -2,6 +2,46 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-05 · Pursuing in production
+
+Approved at desktop, ~1024px and phone widths. Outreach is next.
+
+On `feat/production-pursuing`. `/opportunities` now shows the approved Pursuing experience in place of the placeholder; the route keeps its name and the product calls it Pursuing. It reproduces the C prototype; nothing was redesigned.
+
+- **Desktop:**
+  - the opportunities grouped by timing: closing soon, in progress, and closed (folded);
+  - each row shows its company, stage, people and what needs you, with a date tile only for a live deadline;
+  - beside it, the selected opportunity: header with company, deadline, priority and people; where you are; what happens next; who you know there; what has happened; and what you know.
+- **Where you are:** a sentence ("You're reaching out · 3 of 6") and a quiet path over the domain's stages: small done dots and one brand marker. No bars or funnels.
+- **Phone:**
+  - the list by timing;
+  - one opportunity at a time under Back: what happens next as a card, a compact stage path, people (opening the person sheet), history with Show earlier, notes, and the company.
+- **Links:**
+  - the opportunity is in the URL by id (`/opportunities?opportunity=<id>`);
+  - people link to `/people?person=<id>`;
+  - People's "For" rows now open the exact opportunity;
+  - the company links to the Companies placeholder, carrying the opportunity a phone came from.
+- **Data:** read through `getRepository()` with research context. Grouping, activity and wording are pure functions over the records and the domain's stages; status comes from Today's items.
+- **Actions:** Today's verbs, applied by the domain rules to the session only. Nothing is persisted; a reload resets to the Repository's records.
+- **Shared, not copied:**
+  - People's URL selection became `useUrlSelection`, used by both surfaces;
+  - deadline helpers moved beside the date tile, and phone button labels to the shared actions;
+  - Pursuing reuses People's next-step blocks, facts and styles, and Today's history pieces and person sheet.
+- **Copy:** "Nothing planned yet." (as on People) replaces the prototype's "Add a next step…", which promised a control that doesn't exist.
+- **Fixes:**
+  - a screen-reader-only deadline phrase pushed phone rows 43px wide at 320px; it now sits outside the truncated line;
+  - between 900 and 1180px the list slims to People's 296px, as Today's day panel slims, so the opportunity keeps room.
+- **No shortcuts:** the prototype's arrow-key list movement was not carried over.
+- **Not built:** Outreach, Companies, Settings and Onboarding in production; adding or editing opportunities.
+
+**Verified:**
+
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (175 tests) and `pnpm build`.
+- Headless Chrome, DOM measurements only:
+  - Pursuing at 1440, 1280, 1024 and 900px wide, and at 390, 320 and 700px on a phone;
+  - every route on desktop and phone.
+- No errors or hydration warnings, no overflow, and nothing under the tab bar. Today and People are unchanged.
+
 ## 2026-10-05 · People: functional cleanup
 
 This pass changed behaviour only, with no visual change. People is now approved at desktop, ~1024px and phone widths.
