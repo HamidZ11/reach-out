@@ -8,18 +8,18 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 - Companies ships with Opportunities (4), because every opportunity creates or links a company.
 - Phases 2–5 need writes before a database exists. They use an in-memory repository that is clearly non-durable and resets on restart. That is acceptable because nothing is deployed before phase 6.
 
-| Phase | Name                          | Status                                                                                             |
-| ----- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| 0     | Foundation                    | Done                                                                                               |
-| 1     | Visual design exploration     | Done                                                                                               |
-| 2     | Onboarding + first write path | Design approved; build not started                                                                 |
-| 3     | Today + People                | **In progress**: shell, Today and People built and approved; adding and editing people not started |
-| 4     | Opportunities + Companies     | **In progress**: Pursuing built and approved; Companies not started                                |
-| 5     | Outreach & correspondence     | Design approved; build not started (next)                                                          |
-| 6     | Accounts & persistence        | Not started (Settings design approved)                                                             |
-| 7     | Gmail integration             | Not started                                                                                        |
-| 8     | Polish & launch preparation   | Not started                                                                                        |
-| 9     | Outreach intelligence         | Future                                                                                             |
+| Phase | Name                          | Status                                                                                              |
+| ----- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| 0     | Foundation                    | Done                                                                                                |
+| 1     | Visual design exploration     | Done                                                                                                |
+| 2     | Onboarding + first write path | Design approved; build not started                                                                  |
+| 3     | Today + People                | **In progress**: shell, Today and People built and approved; adding and editing people not started  |
+| 4     | Opportunities + Companies     | **In progress**: Pursuing built and approved; Companies next, not started                           |
+| 5     | Outreach & correspondence     | **In progress**: Outreach view built and approved; logging replies and closing outreach not started |
+| 6     | Accounts & persistence        | Not started (Settings design approved)                                                              |
+| 7     | Gmail integration             | Not started                                                                                         |
+| 8     | Polish & launch preparation   | Not started                                                                                         |
+| 9     | Outreach intelligence         | Future                                                                                              |
 
 ## 0 · Foundation (done)
 

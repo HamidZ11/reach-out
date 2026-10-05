@@ -1,0 +1,452 @@
+/*
+ * Outreach, as approved (DESIGN.md › Outreach; the C prototype is the
+ * reference). Rules are the prototype's own values, carried over unchanged.
+ * The page and "How a message moves" sit in Today's stage and day panel
+ * (today.module.css); phone headers and cards are People's
+ * (people.module.css); folds and the first-section rhythm are Pursuing's
+ * (pursuing.module.css). Tokens come from :root in app/globals.css.
+ */
+
+/* ——— Desktop: tracks grouped by where they stand, beside the path ——— */
+
+.outreach {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  height: 100%;
+  min-height: 0;
+}
+
+.section {
+  max-width: 800px;
+  margin-top: 44px;
+  scroll-margin-top: 24px;
+}
+
+.section:first-of-type {
+  margin-top: 32px;
+}
+
+.sectionHead {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Each state's mark, drawn like the history's nodes and coloured by meaning. */
+.stateMark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+  color: var(--ink-2);
+}
+
+.stateMark[data-tone="now"] {
+  background: var(--attn-wash);
+  box-shadow: inset 0 0 0 1px rgb(116 71 0 / 0.1);
+  color: var(--attn-ink);
+}
+
+.stateMark[data-tone="good"] {
+  background: var(--good-wash);
+  box-shadow: inset 0 0 0 1px rgb(29 107 74 / 0.12);
+  color: var(--good);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 600;
+  font-stretch: 94%;
+  letter-spacing: -0.012em;
+}
+
+.sectionTitle span {
+  color: var(--ink-3);
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionHint {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.tracks,
+.quietList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track {
+  padding: 24px 0 26px;
+  border-bottom: 1px solid var(--line);
+}
+
+.track:last-child {
+  border-bottom: 0;
+}
+
+.trackName,
+.quietName {
+  justify-self: start;
+  padding: 0;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  transition-property: color, text-decoration-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.trackName {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 600;
+  font-stretch: 94%;
+  line-height: 1.25;
+}
+
+.trackHead {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+/* An approved message is settled: it folds to a few lines until you ask. */
+.folded {
+  max-height: 9.6em;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+
+.trackMeta {
+  display: block;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trackStatus {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  text-align: right;
+}
+
+/* Content and actions sit under the name, aligned past the avatar. */
+.trackBody {
+  margin-left: 54px;
+}
+
+.quote {
+  max-width: 680px;
+  margin-top: 14px;
+}
+
+.quoteSubject {
+  margin: 0 0 4px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.quoteWhy {
+  margin: 6px 0 0;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.trackFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.trackFor {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.trackPlan {
+  margin: 10px 0 0 54px;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.quietRow {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.quietRow:last-child {
+  border-bottom: 0;
+}
+
+.quietName {
+  font-size: 14px;
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.quietWhen {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.more {
+  max-width: 800px;
+  margin-top: 28px;
+}
+
+.moreSummary {
+  padding: 8px 0;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.moreSummary span {
+  margin-left: 4px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* How a message moves: the approved path, each step a way into its section. */
+.path {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pathStep {
+  position: relative;
+}
+
+.pathStep + .pathStep::before {
+  position: absolute;
+  top: -8px;
+  left: 21px;
+  width: 1px;
+  height: 12px;
+  background: var(--line-strong);
+  content: "";
+}
+
+.pathButton {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--r-l);
+  color: var(--ink);
+  text-align: left;
+  transition: background-color 150ms ease-out;
+}
+
+.pathButton:disabled {
+  cursor: default;
+}
+
+.pathNode {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sheet);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pathStep[data-empty] .pathNode {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-3);
+}
+
+.pathTitle {
+  display: block;
+  padding-top: 2px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pathStep[data-empty] .pathTitle {
+  color: var(--ink-3);
+}
+
+.pathRule {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* ——— Phone: who needs what, then one person at a time ——— */
+
+.mFootnote {
+  margin: 28px 4px 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.mWide {
+  width: 100%;
+  height: 48px;
+  justify-content: center;
+}
+
+/* Outreach on a phone: who, and what they need from you, in one readable line. */
+.mStateHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px 8px;
+}
+
+.mStateHead h2 {
+  flex: 1;
+}
+
+.mStateHead .stateMark {
+  width: 26px;
+  height: 26px;
+}
+
+button.mTrackRow {
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.rowMain {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.rowMain > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.rowMain > svg {
+  flex-shrink: 0;
+}
+
+.mTrackList button.mTrackRow {
+  min-height: 60px;
+  gap: 12px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.mTrackRow svg {
+  color: var(--ink-3);
+}
+
+.mRowStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.mRowStatus[data-tone="late"] {
+  color: var(--late);
+}
+
+.mRowStatus[data-tone="now"] {
+  color: var(--attn-ink);
+}
+
+.mRowStatus[data-tone="good"] {
+  color: var(--good);
+}
+
+.mPlanned {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+/* A track opened by a link (/outreach?person=<id>): its name takes the brand,
+   as a selected title does on People and Pursuing. */
+.track[aria-current="true"] .trackName,
+.quietRow[aria-current="true"] .quietName {
+  color: var(--brand-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pathButton:not(:disabled):hover {
+    background: rgb(255 255 255 / 0.7);
+  }
+
+  .trackName:hover,
+  .quietName:hover {
+    color: var(--brand-ink);
+    text-decoration-color: currentColor;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trackName,
+  .quietName,
+  .pathButton {
+    transition: none;
+  }
+}

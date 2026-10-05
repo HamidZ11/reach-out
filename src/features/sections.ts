@@ -64,6 +64,15 @@ export function personHref(id: PersonId): Route {
   return `${SECTIONS.people.href}?${new URLSearchParams({ [PERSON_PARAM]: id })}`;
 }
 
+/**
+ * Where a person's outreach lives: Outreach, with their track open
+ * (`/outreach?person=<id>`). There is one track per person (D-014), so the
+ * person's id names it.
+ */
+export function outreachHref(id: PersonId): Route {
+  return `${SECTIONS.outreach.href}?${new URLSearchParams({ [PERSON_PARAM]: id })}`;
+}
+
 /** The query parameter that names the opportunity Pursuing shows. An id, never a title. */
 export const OPPORTUNITY_PARAM = "opportunity";
 

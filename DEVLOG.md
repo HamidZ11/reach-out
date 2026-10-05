@@ -2,6 +2,39 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-05 · Outreach in production
+
+Approved at desktop, ~1024px and phone widths. Companies is next.
+
+On `feat/production-outreach`. `/outreach` now shows the approved Outreach experience in place of the placeholder. It reproduces the C prototype; nothing was redesigned. The brief described a desktop list with a selected detail; the human chose the approved act-in-place composition instead.
+
+- **Desktop:**
+  - one track per person (D-014), grouped by action state: To write, Waiting for your approval, Approved and ready to send, In conversation, Sent and waiting; Not contacted yet and Closed are folded;
+  - each track shows who it is, what it responds to (their reply, what you sent, why they matter), the draft, and Today's verbs in place;
+  - "How a message moves" sits beside it, with how many are at each step.
+- **Phone:**
+  - the list by action state, then one person at a time under Back;
+  - the page shows what to do (the item's card, with the draft in full), what it's for, the history between you, and a link to everything about them.
+- **Approval:** the domain's draft rules decide every step.
+  - A draft waiting for approval offers Approve and Edit, never Mark as sent.
+  - Approving makes it ready to send; editing it sends it back for approval.
+  - Mark as sent records what you sent yourself, and the message joins the history. Nothing is sent from Reachout, and actions last for the session only.
+- **Links:**
+  - the open track is in the URL by person id (`/outreach?person=<id>`): it opens the phone page, and on desktop scrolls to and marks the track;
+  - people link to `/people?person=<id>`, opportunities to `/opportunities?opportunity=<id>`.
+- **Data:** read through `getRepository()`. Tracks derive from the domain's outreach state and Today's items; nothing is stored or scored.
+- **Shared, not copied:** `useUrlSelection`; Today's actions, history and stage frame; People's phone header and cards; Pursuing's phone action card (now with the prototype's full variant) and folds.
+- **Accessibility fix:** acting on a desktop track can move it to another group; focus now follows the person instead of falling to the top of the page.
+- **Not built:** Companies, Settings and Onboarding in production; Gmail, AI, auth and persistence.
+
+**Verified:**
+
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (194 tests) and `pnpm build`.
+- Headless Chrome, DOM measurements only:
+  - Outreach at 1440, 1024 and 900px wide, and at 390, 320 and 700px on a phone;
+  - every route on desktop and phone.
+- No errors or hydration warnings, no overflow, and nothing under the tab bar. Today, People and Pursuing are unchanged.
+
 ## 2026-10-05 · Pursuing in production
 
 Approved at desktop, ~1024px and phone widths. Outreach is next.

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { dayOf, shortDay } from "@/components/dates";
@@ -34,29 +35,37 @@ import { rowMeta, rowState, summary, TYPE_LABEL } from "./wording";
  * happens next, where you are, who you know there, what has happened.
  */
 
-/** Today's verbs as a phone card: one primary action, then what else applies. */
-function ActionCard({
+/** Today's verbs as a phone card: one primary action, then what else applies. Shared with Outreach. */
+export function ActionCard({
   ctx,
   day,
   announce,
+  full = false,
+  children,
 }: {
   ctx: ItemContext;
   day: WorkspaceState;
   announce: Announce;
+  /** The item is the whole page: the draft shows in full, under a top-level heading. */
+  full?: boolean;
+  /** What the item responds to, shown before you act on it. */
+  children?: ReactNode;
 }) {
   const actions = useItemActions(ctx, day, announce);
+  const Heading = full ? "h2" : "h3";
   const { draft } = ctx;
   return (
     <article className={`${pp.mCard} ${pp.mAction}`} aria-label={headline(ctx)}>
       <div className={t.mHead}>
         {tileFor(ctx, day)}
         <div>
-          <h3 className={t.mHeadline}>{headline(ctx)}</h3>
+          <Heading className={t.mHeadline}>{headline(ctx)}</Heading>
           <Status ctx={ctx} className={t.mStatus} />
         </div>
       </div>
+      {children}
       {draft && actions.mode !== "edit" && (
-        <div className={`${t.letter} ${t.mClamp}`}>
+        <div className={full ? t.letter : `${t.letter} ${t.mClamp}`}>
           {draft.subject && <span className={t.letterSubject}>{draft.subject}</span>}
           {draft.body}
         </div>
