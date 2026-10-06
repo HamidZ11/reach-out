@@ -2,6 +2,20 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-06 · Settings in production
+
+On `feat/production-settings`. `/settings` now shows the approved Settings page in place of the placeholder. It reproduces the C prototype without visual change, so it is recorded as approved.
+
+- **Profile and what you're aiming for:** read from the signed-in user's record and validated on the field with the domain's schemas. Saving says "Saved for this session.": nothing is persisted until accounts arrive, and a reload shows the stored profile.
+- **Said plainly:**
+  - notifications are "Not available yet"; Gmail is "Later" and will only ever send what you approved;
+  - LinkedIn is never connected; deleting your account "Arrives with accounts";
+  - none of these are shown as controls.
+- **Navigation:** at the foot of the desktop rail; on a phone it opens from your avatar, with Back to Today, and is never a tab.
+- **Implementation:** both layouts render, as elsewhere, so form ids carry a per-layout prefix and the saved profile is shared. The objective labels moved to `features/workspace/goals.ts` for Onboarding to reuse.
+
+**Verified:** `pnpm check`, plus headless Chrome (DOM only) at 1440, 1024, 390 and 320px: no errors or hydration warnings, no overflow, nothing under the tab bar.
+
 ## 2026-10-06 · Companies in production
 
 Approved at desktop, ~1024px and phone widths, including the shell keeping Pursuing marked for a company opened from an opportunity. Settings is next.

@@ -3,16 +3,14 @@ import type { ComponentType } from "react";
 import { describe, expect, it } from "vitest";
 import type { SectionId } from "@/features/sections";
 import { SECTIONS } from "@/features/sections";
-import SettingsPage from "./(app)/settings/page";
 import OnboardingPage from "./onboarding/page";
 
-/** Sections still served by the placeholder. Settings and Onboarding are not built yet (see src/features). */
+/** Sections still served by the placeholder. Onboarding is not built yet (see src/features). */
 const pages: Record<
-  Exclude<SectionId, "today" | "people" | "opportunities" | "outreach" | "companies">,
+  Exclude<SectionId, "today" | "people" | "opportunities" | "outreach" | "companies" | "settings">,
   ComponentType
 > = {
   onboarding: OnboardingPage,
-  settings: SettingsPage,
 };
 
 describe("route scaffold", () => {

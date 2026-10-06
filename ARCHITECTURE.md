@@ -33,6 +33,7 @@ src/
     pursuing/   Pursuing (route /opportunities): timing groups, stage path, activity, desktop and phone compositions.
     outreach/   Outreach: one track per person grouped by action state, acted on in place; desktop and phone compositions.
     companies/  Companies: derived aggregates (opportunities, people, history) per company; desktop and phone compositions.
+    settings/   Settings: profile and goals (session-only until accounts), and what isn't built yet, said plainly.
   components/   Shared presentational pieces: Avatar, icons, date wording, RoutePlaceholder.
   test/         Test setup and record builders.
 ```
@@ -106,7 +107,7 @@ Authentication is a hard requirement and is **not operational**. See [`src/serve
 
 - **Authenticated user:** a `Session` (`userId`, `method`) whose `userId` is a `User.id`. Sign-in identity belongs to the provider; the product profile is the `User` record.
 - **Where the session enters:** only through `getSession()` / `requireSession()`. `getRepository()` calls `requireSession()`, so every data read is authenticated by construction. Following Next's guidance, access control sits in this data access layer, not in layouts, because layouts do not re-run on navigation.
-- **Protected routes:** everything under `(app)/` and `/onboarding`. The `(app)` layout, `/today`, `/people`, `/opportunities`, `/outreach` and `/companies` read data through `getRepository()`, so they render per request and, in production, fail closed. The other pages are placeholders.
+- **Protected routes:** everything under `(app)/` and `/onboarding`. The `(app)` layout, `/today`, `/people`, `/opportunities`, `/outreach`, `/companies` and `/settings` read data through `getRepository()`, so they render per request and, in production, fail closed. The other pages are placeholders.
 - **Current behaviour:** outside production, every request is the seed user (`method: "development"`). In production, `getSession()` throws `AuthNotConfiguredError`, so an unconfigured deployment fails closed.
 - **Provider integration point (phase 6, likely Supabase Auth):**
   - `getSession()` reads the provider session from cookies and maps it to `Session`.

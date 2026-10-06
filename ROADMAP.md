@@ -16,7 +16,7 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 | 3     | Today + People                | **In progress**: shell, Today and People built and approved; adding and editing people not started  |
 | 4     | Opportunities + Companies     | **Done**: Pursuing and Companies built and approved                                                 |
 | 5     | Outreach & correspondence     | **In progress**: Outreach view built and approved; logging replies and closing outreach not started |
-| 6     | Accounts & persistence        | Not started (Settings design approved)                                                              |
+| 6     | Accounts & persistence        | Settings UI built and approved (session-only); accounts and persistence not started                 |
 | 7     | Gmail integration             | Not started                                                                                         |
 | 8     | Polish & launch preparation   | Not started                                                                                         |
 | 9     | Outreach intelligence         | Future                                                                                              |
