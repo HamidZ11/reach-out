@@ -31,7 +31,8 @@ vi.mock("./auth", () => ({ requireSession: async () => session }));
 vi.mock("./repository", () => ({ getRepository: async () => repository }));
 vi.mock("./rate-limit", () => ({ allowed: async () => rateAllowed }));
 
-const { disconnectGmail, finishGmailConnection, startGmailConnection } = await import("./gmail");
+const { disconnectGmail, finishGmailConnection, startGmailConnection, syncGmailForUser } =
+  await import("./gmail");
 
 const REFRESH_TOKEN = "1//refresh-token-that-must-never-leak";
 const calls: { url: string; body?: string }[] = [];
@@ -75,6 +76,7 @@ beforeEach(() => {
     },
     TEST_USER_ID,
   );
+  vi.stubEnv("REACHOUT_GMAIL_ENABLED", "true");
   vi.stubEnv("GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com");
   vi.stubEnv("GOOGLE_CLIENT_SECRET", "client-secret");
   vi.stubEnv("GOOGLE_GMAIL_REDIRECT_URI", "https://reachout.example/settings/gmail/callback");
@@ -170,6 +172,18 @@ describe("connecting Gmail", () => {
   it("starting again and again is limited", async () => {
     rateAllowed = false;
     expect(await startGmailConnection()).toEqual({ problem: "rate_limited" });
+  });
+
+  it("switched off for public launch (D-034): no flow, nothing stored, nothing reaches Google", async () => {
+    vi.stubEnv("REACHOUT_GMAIL_ENABLED", "");
+    expect(await startGmailConnection()).toEqual({ problem: "unavailable" });
+    expect(jar.has("reachout-gmail-oauth")).toBe(false);
+    expect(
+      await finishGmailConnection(new URLSearchParams({ state: "anything", code: "anything" })),
+    ).toBe("disabled");
+    expect(await syncGmailForUser({ now: true })).toEqual({ status: "disabled" });
+    expect(await repository.gmail.connection()).toBeNull();
+    expect(calls).toEqual([]);
   });
 
   it("without Gmail configured, nothing reaches Google", async () => {

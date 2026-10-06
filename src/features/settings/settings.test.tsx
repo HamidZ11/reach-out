@@ -198,8 +198,8 @@ describe("production Settings", () => {
     const accounts = within(desktop.getByRole("region", { name: "Connected accounts" }));
     // Gmail not set up on this deployment: said, not offered.
     expect(accounts.getByText("Not available yet")).toBeInTheDocument();
-    expect(accounts.getByText(/It isn't set up on this site yet/)).toBeInTheDocument();
-    expect(accounts.getByText(/never sends, changes or deletes mail/)).toBeInTheDocument();
+    expect(accounts.getByText(/^Coming later\./)).toBeInTheDocument();
+    expect(accounts.getByText(/will never send, change or delete mail/)).toBeInTheDocument();
     expect(accounts.getByText(/Never connected/)).toBeInTheDocument();
     expect(accounts.queryByRole("button")).toBeNull();
     expect(accounts.queryByRole("link")).toBeNull();

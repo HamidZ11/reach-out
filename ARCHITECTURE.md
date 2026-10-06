@@ -181,6 +181,14 @@ Supabase Auth, signing in by email link (D-026). See [`src/server/auth.ts`](src/
 
 Gmail is a correspondence connector, separate from sign-in. It never sends, changes or deletes mail. Manual "Mark as sent" stays as the fallback, and is final (D-030).
 
+- **Launch gate (D-034):** Gmail is off unless `REACHOUT_GMAIL_ENABLED=true` and all four settings are present (`gmailConfig()`).
+- **When off:**
+  - Settings says "Coming later", with no Connect;
+  - `startGmailConnection` refuses;
+  - the callback redirects to `/settings` without acting;
+  - sync returns `disabled`, and nothing reaches Google.
+- **At launch:** public production leaves it off until Google verifies the scope.
+
 - **Layers:**
   - `src/domain/correspondence.ts` holds the rules (matching, reconciliation);
   - `src/integrations/gmail/` translates Gmail (OAuth, API reads, message mapping, the sync loop) and imports no UI, routes or database client (lint);
@@ -272,7 +280,7 @@ Three layers, kept distinct:
 - Likely Vercel, on the Node.js runtime, with a hosted Supabase project. Nothing is deployed yet: [docs/launch-checklist.md](docs/launch-checklist.md) lists what the live project needs first.
 - **Configuration** (all server-only, read in `src/server/`; `.env.example` lists the names):
   - required: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and in production `REACHOUT_RATE_LIMIT_SECRET`;
-  - Gmail, when wanted: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_GMAIL_REDIRECT_URI`, `GMAIL_TOKEN_ENCRYPTION_KEY` (and `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` during a rotation).
+  - Gmail, only when switched on (D-034): `REACHOUT_GMAIL_ENABLED=true`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_GMAIL_REDIRECT_URI`, `GMAIL_TOKEN_ENCRYPTION_KEY` (and `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` during a rotation).
   - The application needs no service key. `.env*` files are gitignored.
 - No custom servers, no edge runtime requirement, no background workers until Gmail sync needs them (decide then).
 

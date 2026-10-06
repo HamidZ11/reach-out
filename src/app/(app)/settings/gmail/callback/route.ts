@@ -9,5 +9,7 @@ import { finishGmailConnection } from "@/server/gmail";
  */
 export async function GET(request: NextRequest) {
   const result = await finishGmailConnection(request.nextUrl.searchParams);
+  // Switched off: no flow exists, so there is nothing to report.
+  if (result === "disabled") redirect("/settings");
   redirect(`/settings?gmail=${result}`);
 }

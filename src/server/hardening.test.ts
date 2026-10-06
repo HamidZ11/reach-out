@@ -7,6 +7,7 @@ import { clientAddress } from "./rate-limit";
 
 const KEY = randomBytes(32).toString("base64");
 const GMAIL = {
+  REACHOUT_GMAIL_ENABLED: "true",
   GOOGLE_CLIENT_ID: "client.apps.googleusercontent.com",
   GOOGLE_CLIENT_SECRET: "secret",
   GOOGLE_GMAIL_REDIRECT_URI: "https://reachout.example/settings/gmail/callback",
@@ -14,9 +15,18 @@ const GMAIL = {
 };
 
 describe("Gmail configuration", () => {
+  it("is off unless deliberately switched on (D-034), even when fully configured", () => {
+    expect(gmailConfig({ ...GMAIL, REACHOUT_GMAIL_ENABLED: undefined })).toBeNull();
+    for (const almost of ["", "1", "TRUE", "yes", "true "]) {
+      expect(gmailConfig({ ...GMAIL, REACHOUT_GMAIL_ENABLED: almost })).toBeNull();
+    }
+    expect(gmailConfig(GMAIL)).not.toBeNull();
+  });
+
   it("is off unless every setting is present and sound", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(gmailConfig({})).toBeNull();
+    expect(gmailConfig({ REACHOUT_GMAIL_ENABLED: "true" })).toBeNull();
     expect(gmailConfig({ ...GMAIL, GOOGLE_CLIENT_SECRET: "" })).toBeNull();
     for (const uri of [
       "http://reachout.example/settings/gmail/callback",

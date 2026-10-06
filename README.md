@@ -55,6 +55,24 @@ pnpm test:db   # Repository and Gmail sync contracts, two-account isolation, rat
 pnpm db:test   # pgTAP: RLS, grants and function ownership, checked inside Postgres
 ```
 
+## Configuration
+
+All settings are server-only environment variables; `.env.example` lists them. Locally, `.env.local` needs only `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+
+- **Production** also requires `REACHOUT_RATE_LIMIT_SECRET`.
+- **Gmail** is off unless `REACHOUT_GMAIL_ENABLED=true` and its four settings are set (D-034). Public launch keeps it off.
+
+## Deployment
+
+Not deployed yet. The intended host is Vercel (Node runtime), with one Supabase project per environment.
+
+1. Apply the migrations to each project with `supabase db push`.
+2. Configure Supabase Auth (Site URL, redirect, email template, SMTP).
+3. Set the environment variables per environment.
+4. Deploy a preview, verify it, then production.
+
+[docs/launch-checklist.md](docs/launch-checklist.md) has every step and what is still open.
+
 ## Database
 
 - **Schema:** versioned migrations in `supabase/migrations/`. Never change it in the dashboard.

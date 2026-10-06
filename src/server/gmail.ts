@@ -84,7 +84,14 @@ export async function startGmailConnection(): Promise<ConnectStart> {
   return { url: authorizationUrl(client(config), { state, challenge }) };
 }
 
-export type ConnectResult = "connected" | "denied" | "invalid" | "permission" | "unavailable";
+export type ConnectResult =
+  | "connected"
+  | "denied"
+  | "invalid"
+  | "permission"
+  | "unavailable"
+  /** Gmail is switched off on this deployment: nothing happened. */
+  | "disabled";
 
 /**
  * Google's callback. The state must match this browser's handshake, for the
@@ -97,7 +104,7 @@ export async function finishGmailConnection(params: URLSearchParams): Promise<Co
   const store = await cookies();
   const raw = store.get(HANDSHAKE_COOKIE)?.value;
   store.set(HANDSHAKE_COOKIE, "", { path: GMAIL_CALLBACK_PATH, maxAge: 0 });
-  if (!config || session.method !== "supabase") return "unavailable";
+  if (!config || session.method !== "supabase") return "disabled";
   if (params.get("error")) return "denied";
 
   const handshake = readHandshake(raw, config, session.userId);
@@ -151,13 +158,13 @@ export async function disconnectGmail(): Promise<{ revoked: boolean }> {
   }
 }
 
-export type SyncAnswer = GmailSyncResult | { status: "rate_limited" };
+export type SyncAnswer = GmailSyncResult | { status: "rate_limited" } | { status: "disabled" };
 
 /** A sync for the signed-in user: when due, or now when they ask ("Check now"). */
 export async function syncGmailForUser({ now }: { now: boolean }): Promise<SyncAnswer> {
   const config = gmailConfig();
   const session = await requireSession();
-  if (!config || session.method !== "supabase") return { status: "skipped" };
+  if (!config || session.method !== "supabase") return { status: "disabled" };
   if (now && !(await allowed("gmail_check", session.userId, { whenUnavailable: "refuse" }))) {
     return { status: "rate_limited" };
   }

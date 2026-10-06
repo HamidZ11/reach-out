@@ -2,6 +2,38 @@
 
 What the live Supabase project, Google Cloud and the deployment need before real students sign in. **Nothing here has been done or checked on hosted infrastructure yet.** Everything so far ran against the local Supabase stack (`pnpm db:start`), with Google faked in tests.
 
+## Status (2026-10-07)
+
+**Done locally and verified:**
+
+- the full product, auth and persistence;
+- RLS and two-account isolation (`pnpm test:db`, `pnpm db:test`);
+- rate limits, security headers and CSP;
+- the Gmail launch gate (off by default, D-034);
+- headless DOM walks of the whole journey at 1440, 1024, 390 and 320px.
+
+**Blocked on the human. Engineering can't do these:**
+
+1. **Supabase projects.** The organisation is on the free plan, with its two active projects (`internship-radar`, `AfterWord`) already in use. A preview and a production project need either the Pro plan or another project paused. Choose one; then section 1 can be run from the CLI.
+2. **Hosting.** The repository isn't connected to Vercel (no project, no token). Create the Vercel project from the GitHub repository (or provide a `VERCEL_TOKEN`).
+3. **Email.** Real sign-in email needs an SMTP provider account (for example Resend or Postmark) and a sending domain with SPF, DKIM and DMARC.
+4. **Domain.** The production domain needs buying or choosing, and verifying with Vercel and the email provider.
+5. **Visual review** of the states listed below.
+
+**Not required for launch:** Google verification of `gmail.metadata` (Gmail launches switched off).
+
+## Human visual review
+
+Run locally with `pnpm db:start` and `pnpm dev`, then check each state:
+
+- **Sign in:** `/sign-in` (signed out). For "link expired", `/sign-in?error=link`. For the rate-limit message, ask for six links for one address within 15 minutes, about a second apart.
+- **Error page:** stop the Data API (`docker stop supabase_rest_reachout`), load `/today`, then `docker start supabase_rest_reachout` and press "Try again".
+- **Onboarding:** sign in with a new address.
+- **Settings:** the Account row, the read-only email, and Gmail:
+  - "Coming later" with `REACHOUT_GMAIL_ENABLED` unset;
+  - "Not connected", connected and "Reconnect needed" with it set to `true` (a fake Google client is enough to view these).
+- **Outreach two-step:** with an approved draft, open `/outreach?person=<id>`, then press "Mark as sent", then "Yes, I sent it". No Undo follows.
+
 Use one Supabase project (and one Google OAuth client) per environment: **preview** and **production** never share a database, users or credentials.
 
 ## 1. Supabase project
@@ -41,7 +73,7 @@ Use one Supabase project (and one Google OAuth client) per environment: **previe
 
 ## 3. Google Cloud (Gmail)
 
-Gmail is optional: without its four settings, Settings says it isn't available and nothing calls Google.
+Gmail is optional, and off for public launch (D-034). Unless `REACHOUT_GMAIL_ENABLED=true` and its four settings are all set, Settings says "Coming later" and nothing calls Google. Switch it on for preview and test users only, until Google approves the scope.
 
 - [ ] Create a Google Cloud project per environment (or at least a separate OAuth client per environment).
 - [ ] Enable the **Gmail API**.
@@ -62,17 +94,18 @@ Gmail is optional: without its four settings, Settings says it isn't available a
 
 All server-only; none are `NEXT_PUBLIC_`. Set them per environment, never in the repository.
 
-| Variable                              | Required               | Value                                                                                         |
-| ------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `SUPABASE_URL`                        | Yes                    | The project URL (https)                                                                       |
-| `SUPABASE_PUBLISHABLE_KEY`            | Yes                    | The project's publishable (or legacy anon) key. No service key is needed                      |
-| `REACHOUT_RATE_LIMIT_SECRET`          | Yes, in production     | 32+ random characters (`openssl rand -hex 32`)                                                |
-| `GOOGLE_CLIENT_ID`                    | For Gmail              | The OAuth web client's id                                                                     |
-| `GOOGLE_CLIENT_SECRET`                | For Gmail              | Its secret                                                                                    |
-| `GOOGLE_GMAIL_REDIRECT_URI`           | For Gmail              | Exactly `https://<origin>/settings/gmail/callback`                                            |
-| `GMAIL_TOKEN_ENCRYPTION_KEY`          | For Gmail              | 32 random bytes, base64 (`openssl rand -base64 32`). Back it up: losing it means reconnecting |
-| `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` | Only during a rotation | The previous key, so older tokens still open                                                  |
-| `REACHOUT_DEV_SEED`                   | Never                  | Development only; production refuses to serve with it set                                     |
+| Variable                              | Required               | Value                                                                                                      |
+| ------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`                        | Yes                    | The project URL (https)                                                                                    |
+| `SUPABASE_PUBLISHABLE_KEY`            | Yes                    | The project's publishable (or legacy anon) key. No service key is needed                                   |
+| `REACHOUT_RATE_LIMIT_SECRET`          | Yes, in production     | 32+ random characters (`openssl rand -hex 32`)                                                             |
+| `REACHOUT_GMAIL_ENABLED`              | No (launch: unset)     | Exactly `true` switches Gmail on (D-034). Leave unset in public production until Google approves the scope |
+| `GOOGLE_CLIENT_ID`                    | For Gmail              | The OAuth web client's id                                                                                  |
+| `GOOGLE_CLIENT_SECRET`                | For Gmail              | Its secret                                                                                                 |
+| `GOOGLE_GMAIL_REDIRECT_URI`           | For Gmail              | Exactly `https://<origin>/settings/gmail/callback`                                                         |
+| `GMAIL_TOKEN_ENCRYPTION_KEY`          | For Gmail              | 32 random bytes, base64 (`openssl rand -base64 32`). Back it up: losing it means reconnecting              |
+| `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` | Only during a rotation | The previous key, so older tokens still open                                                               |
+| `REACHOUT_DEV_SEED`                   | Never                  | Development only; production refuses to serve with it set                                                  |
 
 - [ ] Serve over **https** on a custom domain. Cookies are `Secure`, `HttpOnly` and `SameSite=Lax` in production, and HSTS is sent.
 - [ ] After deploying, check:

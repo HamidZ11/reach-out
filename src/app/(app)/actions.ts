@@ -181,6 +181,8 @@ export async function checkGmail(): Promise<GmailOutcome> {
         return { ok: false, message: "Checked very recently. Try again in a few minutes." };
       case "skipped":
         return { ok: true, connection, message: "Gmail is already being checked." };
+      case "disabled":
+        return { ok: false, message: "Gmail isn't available on this site yet." };
       case "unavailable":
         return {
           ok: false,

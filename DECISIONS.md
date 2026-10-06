@@ -392,3 +392,21 @@ _2026-10-06 · Accepted_
 **Why:** XSS and clickjacking defences that the app's design already allows, because every page renders per request (D-029) and nothing loads third-party scripts.
 
 **Consequence:** adding any external script, style, font or connection needs a CSP change and a reason.
+
+## D-034 · Reachout launches with Gmail switched off
+
+_2026-10-06 · Accepted_
+
+V1 launches on the core loop with manual "Mark as sent". Gmail stays built but is switched off in public production until Google has verified the restricted `gmail.metadata` scope (and the security assessment that comes with it).
+
+- **Server-only switch:** `REACHOUT_GMAIL_ENABLED` must be exactly `true`, and all four Gmail settings present (D-031). Anything else, including absent, is off.
+- **When off:**
+  - Settings says Gmail is coming later, with no Connect;
+  - starting a connection does nothing;
+  - the callback redirects to Settings without acting;
+  - no sync runs, and nothing reaches Google;
+  - an existing connection is left in place but not used.
+- **Test environments:** a Google test-user environment (OAuth app in testing mode, named test users) may switch it on to verify the flow. That is not public approval, and is never described as such.
+- The Gmail code, schema and tests stay. Enabling it publicly is a configuration change after Google approves.
+
+**Why:** the launch shouldn't wait on an external review, and public users shouldn't be offered a flow Google hasn't approved.

@@ -2,6 +2,31 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-07 · Release preparation: Gmail launch gate; hosted setup blocked on the human
+
+On `feat/gmail-launch`. The final release pass prepared everything that engineering alone can do. The hosted steps stopped where they need the human.
+
+- **Gmail launch gate (D-034):**
+  - Gmail is off unless `REACHOUT_GMAIL_ENABLED=true` and all four settings are present;
+  - when off, Settings says "Coming later" with no Connect, connecting refuses, the callback does nothing, and no sync runs;
+  - the implementation stays, and is tested both on and off.
+- **Review preparation:**
+  - the human review states and how to reach them are in docs/launch-checklist.md;
+  - local fixture accounts exist for the Outreach two-step and the Gmail connected and reconnect states.
+- **Hosted setup, stopped for the human:**
+  - Supabase: the organisation is on the free plan with its two active projects in use, so a preview and a production project need the Pro plan or another project paused;
+  - Vercel: the repository isn't connected and there is no token;
+  - there are no SMTP credentials and no production domain.
+- **Not done, because hosted setup isn't:** no preview or production deployment, no real email, no hosted isolation test, and no merge to `main`.
+- **Ancestry:** `main` (`ae383f6`) is an ancestor of `feat/gmail-launch`, and the history is one straight line through every feature branch. Once launch checks pass, `main` fast-forwards with nothing lost.
+
+**Verified:**
+
+- `pnpm check`, `pnpm test:db`, `pnpm db:test`, `git diff --check` and `pnpm audit --prod`;
+- DOM walks on a production build with Gmail on (56 journey, 5 Gmail states and rate limit, 32 width checks);
+- on the dev server with Gmail off (the 2 gate checks and 32 width checks);
+- no console errors.
+
 ## 2026-10-06 · Gmail correspondence tracking, final mark-sent, launch hardening
 
 On `feat/gmail-launch`. Gmail now keeps relationship history accurate without manual tracking, and the app is hardened for launch. No AI was added, nothing was deployed, and approved surfaces weren't redesigned. The few new states await visual review (DESIGN.md).

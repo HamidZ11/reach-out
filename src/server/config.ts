@@ -63,8 +63,11 @@ export function authModeOrNull(env: Env = process.env): AuthMode | null {
 }
 
 /**
- * Gmail (D-031) is optional: without all of its settings, Settings says it
- * isn't available and nothing tries to reach Google.
+ * Gmail (D-031) is off unless deliberately switched on (D-034):
+ * REACHOUT_GMAIL_ENABLED=true and every setting below. Off, Settings says it
+ * is coming later, nothing offers to connect, the callback does nothing, and
+ * nothing reaches Google. Public launch keeps it off until Google has
+ * verified the restricted scope; a Google test-user environment may turn it on.
  *
  * - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET: the OAuth web client.
  * - GOOGLE_GMAIL_REDIRECT_URI: exactly the callback registered with Google,
@@ -81,13 +84,15 @@ export type GmailConfig = {
 };
 
 export function gmailConfig(env: Env = process.env): GmailConfig | null {
+  if (env.REACHOUT_GMAIL_ENABLED !== "true") return null;
   const clientId = env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
   const redirectUri = env.GOOGLE_GMAIL_REDIRECT_URI?.trim();
   const key = env.GMAIL_TOKEN_ENCRYPTION_KEY?.trim();
-  if (!clientId && !clientSecret && !redirectUri && !key) return null;
   if (!clientId || !clientSecret || !redirectUri || !key) {
-    console.error("Gmail is partly configured, so it stays off. See .env.example.");
+    console.error(
+      "Gmail is switched on but not fully configured, so it stays off. See .env.example.",
+    );
     return null;
   }
   try {

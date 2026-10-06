@@ -509,7 +509,11 @@ function GmailRow({ gmail, timeZone }: { gmail: GmailControl; timeZone: string }
         <dt className={k.defTerm}>Gmail</dt>
         <dd className={k.defValue}>
           <Later />
-          <span className={k.plain}>{reads} It isn&apos;t set up on this site yet.</span>
+          <span className={k.plain}>
+            Coming later. With Gmail connected, Reachout will notice what you send to, and receive
+            from, people you track. It will only read message details: it will never send, change or
+            delete mail.
+          </span>
         </dd>
       </div>
     );
