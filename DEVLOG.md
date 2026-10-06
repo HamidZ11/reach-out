@@ -2,6 +2,34 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-06 · Onboarding in production; every UI surface built
+
+On `feat/production-onboarding`. `/onboarding` now runs the approved flow in place of the placeholder. It reproduces the C prototype; nothing was redesigned. Every production UI surface is now built.
+
+- **The flow:**
+  - seven questions, one per step: goal, roles, industries, places, one opportunity, one person, and a first step;
+  - "Your workspace" fills in beside it on desktop;
+  - on a phone, Back sits in the top bar and Continue within thumb reach;
+  - problems show only after Continue, on the field, as help;
+  - only the first, single-choice step moves on by itself.
+- **The outcome:**
+  - finishing builds real records through the domain schemas: goals, a company matched by name, an opportunity, a person and an open next action;
+  - it then opens the approved Today on them, inside the app shell, saying "You're set up for this session. This is your Today."
+- **Auth and data, honestly:**
+  - the route reads the signed-in user through `getRepository()`, so production still fails closed;
+  - development runs as the seed user;
+  - the records last for the session only: leaving Today or reloading shows the Repository's records again, until the first write path.
+- **Shared, not copied:**
+  - Today gained an optional `welcome` and the shell an optional `current` section, for arriving at Today from `/onboarding`; both default to the old behaviour;
+  - the objective labels come from `features/workspace/goals.ts`;
+  - the unused route placeholder was removed.
+- **Status:**
+  - approved: Today, People, Pursuing, Outreach, Companies and Settings;
+  - implemented: Onboarding;
+  - next: authentication and durable persistence. Gmail and AI come later.
+
+**Verified:** `pnpm check` (241 tests), plus headless Chrome (DOM only) walking the whole flow at 1440, 390 and 320px: no errors or hydration warnings, no overflow, nothing under the tab bar.
+
 ## 2026-10-06 · Settings in production
 
 On `feat/production-settings`. `/settings` now shows the approved Settings page in place of the placeholder. It reproduces the C prototype without visual change, so it is recorded as approved.

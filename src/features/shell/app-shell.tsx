@@ -60,13 +60,17 @@ function RailLink({
 export function AppShell({
   userName,
   attention,
+  current,
   children,
 }: {
   userName: string;
   attention: boolean;
+  /** The section to mark when the address isn't one (onboarding ends inside Today). */
+  current?: Route;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
+  const path = usePathname();
+  const pathname = current ?? path;
   const params = useSearchParams();
   // Companies has no tab: opened from an opportunity, the bar keeps Pursuing marked.
   const fromOpportunity =

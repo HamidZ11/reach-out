@@ -14,7 +14,7 @@ Reachout helps students and recent graduates create real opportunities through t
 | [ROADMAP.md](ROADMAP.md)           | To know which phase you are in and what is out of scope        |
 | [DEVLOG.md](DEVLOG.md)             | To see what happened recently; append an entry when you finish |
 
-Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Production implementation is under way: the app shell, Today, People, Pursuing (`/opportunities`), Outreach, Companies and Settings are built and approved. Onboarding is next. Actions and Settings changes are session-only until the first write path, and nothing is ever sent from Reachout. Onboarding is still a placeholder; auth, persistence, Supabase, Gmail and AI are later phases. Outreach intelligence is future phase 9 (D-022).**
+Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Production implementation is under way: every production UI surface is built. The app shell, Today, People, Pursuing (`/opportunities`), Outreach, Companies and Settings are approved; Onboarding is implemented from the approved prototype. Actions, Settings changes and onboarding's records are session-only until the first write path, and nothing is ever sent from Reachout. Next: authentication and durable persistence on `feat/auth-persistence`. Gmail and AI come later. Outreach intelligence is future phase 9 (D-022).**
 
 ## Workflow
 

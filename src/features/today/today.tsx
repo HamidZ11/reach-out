@@ -18,10 +18,17 @@ import { useFocus } from "./use-focus";
  * Actions apply the real domain rules to this session only. Nothing is saved
  * yet: the Repository gains writes with the first write path (ROADMAP phase 2).
  */
-export function Today({ workspace }: { workspace: Workspace }) {
+export function Today({
+  workspace,
+  welcome,
+}: {
+  workspace: Workspace;
+  /** Said once on arrival, as onboarding ends inside Today. */
+  welcome?: string;
+}) {
   const day = useWorkspace(workspace);
   const focus = useFocus(day);
-  const announcer = useAnnouncer(day);
+  const announcer = useAnnouncer(day, welcome);
   return (
     <>
       <div className={s.desktopLayout} data-layout="desktop">

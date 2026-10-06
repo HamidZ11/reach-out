@@ -1,22 +1,35 @@
-import { render, screen } from "@testing-library/react";
-import type { ComponentType } from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { SectionId } from "@/features/sections";
 import { SECTIONS } from "@/features/sections";
-import OnboardingPage from "./onboarding/page";
 
-/** Sections still served by the placeholder. Onboarding is not built yet (see src/features). */
-const pages: Record<
-  Exclude<SectionId, "today" | "people" | "opportunities" | "outreach" | "companies" | "settings">,
-  ComponentType
-> = {
-  onboarding: OnboardingPage,
+/**
+ * Every section is a built screen now, not a placeholder. Each route reads
+ * through `getRepository()` (and so `requireSession()`), per request: in
+ * production they all fail closed until accounts arrive. Vitest can't render
+ * async Server Components, so this reads the route files themselves.
+ */
+
+const ROUTE_FILE: Record<SectionId, string> = {
+  onboarding: "onboarding/page.tsx",
+  today: "(app)/today/page.tsx",
+  people: "(app)/people/page.tsx",
+  opportunities: "(app)/opportunities/page.tsx",
+  outreach: "(app)/outreach/page.tsx",
+  companies: "(app)/companies/page.tsx",
+  settings: "(app)/settings/page.tsx",
 };
 
-describe("route scaffold", () => {
-  it.each(Object.entries(pages))("/%s still renders its section placeholder", (id, Page) => {
-    render(<Page />);
-    const { label } = SECTIONS[id as SectionId];
-    expect(screen.getByRole("heading", { level: 1, name: label })).toBeInTheDocument();
-  });
+describe("routes", () => {
+  it.each(Object.entries(ROUTE_FILE))(
+    "%s reads through the Repository, per request",
+    (id, file) => {
+      const source = readFileSync(join(process.cwd(), "src", "app", file), "utf8");
+      expect(source).toContain("await getRepository()");
+      expect(source).toContain("await connection()");
+      expect(source).not.toContain("RoutePlaceholder");
+      expect(SECTIONS[id as SectionId].href).toBeTruthy();
+    },
+  );
 });
