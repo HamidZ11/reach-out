@@ -14,7 +14,7 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 | 1     | Visual design exploration     | Done                                                                                                |
 | 2     | Onboarding + first write path | Design approved; build not started                                                                  |
 | 3     | Today + People                | **In progress**: shell, Today and People built and approved; adding and editing people not started  |
-| 4     | Opportunities + Companies     | **In progress**: Pursuing built and approved; Companies next, not started                           |
+| 4     | Opportunities + Companies     | **Done**: Pursuing and Companies built and approved                                                 |
 | 5     | Outreach & correspondence     | **In progress**: Outreach view built and approved; logging replies and closing outreach not started |
 | 6     | Accounts & persistence        | Not started (Settings design approved)                                                              |
 | 7     | Gmail integration             | Not started                                                                                         |

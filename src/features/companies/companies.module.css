@@ -1,0 +1,170 @@
+/*
+ * Companies, as approved (DESIGN.md › Companies; the C prototype is the
+ * reference). Rules are the prototype's own values, carried over unchanged.
+ * The list, detail and knowledge styles are People's (people.module.css),
+ * blocks, people lines, rows and phone folds are Pursuing's
+ * (pursuing.module.css), and the history and phone frame are Today's
+ * (today.module.css). Tokens come from :root in app/globals.css.
+ */
+
+/* ——— Desktop: the companies beside the selected one ——— */
+
+.companies {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.companyRow {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 8px;
+  border-radius: 14px;
+  color: var(--ink);
+  text-align: left;
+  transition-property: background-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+/* Selected: the same brand wash People uses. */
+.companyRow[aria-current="true"] {
+  background: var(--brand-wash);
+  box-shadow: inset 0 0 0 1px var(--brand-soft);
+}
+
+.companyRow[aria-current="true"] .rowName {
+  color: var(--brand-ink);
+}
+
+.companyRow[aria-current="true"] .mark {
+  box-shadow:
+    0 0 0 2px var(--brand-wash),
+    0 0 0 3.5px var(--brand);
+}
+
+.rowName {
+  transition: color 150ms ease-out;
+}
+
+/* A company's mark: its initial on a quiet tile, so companies never look like people. */
+.mark {
+  display: grid;
+  width: var(--size, 34px);
+  height: var(--size, 34px);
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: calc(var(--size, 34px) / 4);
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+  color: var(--ink-2);
+  font-family: var(--display);
+  font-size: calc(var(--size, 34px) * 0.44);
+  font-weight: 650;
+  line-height: 1;
+  transition: box-shadow 150ms ease-out;
+}
+
+.companyHead {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.companyHead p + p {
+  margin-top: 10px;
+}
+
+/* Companies: why it matters, said from the records. */
+.companyWhy {
+  max-width: 860px;
+  margin-top: 30px;
+}
+
+.companyWhyText {
+  margin: 10px 0 0;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 500;
+  font-stretch: 96%;
+  letter-spacing: -0.014em;
+  line-height: 1.36;
+  text-wrap: pretty;
+}
+
+.derived {
+  margin: 8px 0 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.pursuits {
+  display: grid;
+  max-width: 860px;
+}
+
+.pursuit {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px 10px 4px;
+  border-radius: var(--r-l);
+  color: var(--ink);
+  text-align: left;
+  transition: background-color 150ms ease-out;
+}
+
+.pursuitTitle {
+  display: block;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.pursuit[data-closed] .pursuitTitle {
+  color: var(--ink-3);
+}
+
+/* ——— Phone: contextual, never a tab ——— */
+
+.mGap {
+  margin-top: 12px;
+}
+
+.mWhyText {
+  margin: 8px 0 0;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.42;
+  text-wrap: pretty;
+}
+
+/* Rows on the approved white list, with a column for what needs you. */
+button.mCompanyRow {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .companyRow:not([aria-current="true"]):hover {
+    background: rgb(255 255 255 / 0.7);
+  }
+
+  .pursuit:hover {
+    background: var(--tint);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companyRow,
+  .mark,
+  .pursuit {
+    transition: none;
+  }
+}

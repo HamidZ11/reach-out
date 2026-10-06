@@ -81,13 +81,15 @@ export function opportunityHref(id: OpportunityId): Route {
   return `${SECTIONS.opportunities.href}?${new URLSearchParams({ [OPPORTUNITY_PARAM]: id })}`;
 }
 
-/**
- * Where a company lives (`/companies?company=<id>`). `from` is the opportunity
- * a phone came from, so Companies can return to it. The Companies route is
- * still a placeholder and does not read these yet.
- */
+/** The query parameter that names the company Companies shows. An id, never a name. */
+export const COMPANY_PARAM = "company";
+
+/** On Companies: the opportunity a phone came from, so Back can return to it. */
+export const FROM_PARAM = "from";
+
+/** Where a company lives (`/companies?company=<id>`), optionally with the opportunity it was opened from. */
 export function companyHref(id: CompanyId, from?: OpportunityId): Route {
-  const params = new URLSearchParams({ company: id });
-  if (from) params.set("from", from);
+  const params = new URLSearchParams({ [COMPANY_PARAM]: id });
+  if (from) params.set(FROM_PARAM, from);
   return `${SECTIONS.companies.href}?${params}`;
 }

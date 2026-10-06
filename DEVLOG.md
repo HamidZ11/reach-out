@@ -2,6 +2,35 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-06 · Companies in production
+
+Approved at desktop, ~1024px and phone widths, including the shell keeping Pursuing marked for a company opened from an opportunity. Settings is next.
+
+On `feat/production-companies`. `/companies` now shows the approved Companies experience in place of the placeholder. It reproduces the C prototype; nothing was redesigned.
+
+- **Derived, never maintained (D-012):** each company gathers its opportunities, its people, their history and pending drafts from the records. Nothing is entered, edited, stored or scored.
+- **Desktop:**
+  - the companies beside the selected one: closing soon first, then what Today asks soonest, then the most recent contact;
+  - each company shows its standing in words and "Why X matters", worded from the records;
+  - then what you're pursuing there, who you know there, what has happened, and your notes and sourced facts.
+- **Phone:** the list, then one company: why it matters, what you're pursuing there, who you know (opening the person sheet), the latest history with Show earlier, and what you know. Companies has no tab.
+- **Links:**
+  - the company is in the URL by id (`/companies?company=<id>`);
+  - opportunities link to `/opportunities?opportunity=<id>`, people to `/people?person=<id>`;
+  - the approved design shows outreach in words only, so there are no Outreach links.
+- **Return context:** opened from an opportunity on a phone (`&from=<opportunity-id>`), Back returns to that exact opportunity and the tab bar keeps Pursuing marked (DESIGN.md › Navigation). An unknown `from`, or one for another company's opportunity, is ignored.
+- **Shell:** the phone tab bar reads `from` to keep Pursuing marked. No tab was added.
+- **Shared, not copied:** `useUrlSelection`, Pursuing's person lines, activity, wording and folds, People's facts and styles, Today's tiles, history and person sheet.
+- **Not built:** Settings and Onboarding in production; auth, persistence, Supabase, Gmail and AI.
+
+**Verified:**
+
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (212 tests) and `pnpm build`.
+- Headless Chrome, DOM measurements only:
+  - Companies at 1440, 1024 and 900px wide, and at 390, 320 and 700px on a phone;
+  - every route on desktop and phone.
+- No errors or hydration warnings, no overflow, and nothing under the tab bar. Today, People, Pursuing and Outreach are unchanged.
+
 ## 2026-10-05 · Outreach in production
 
 Approved at desktop, ~1024px and phone widths. Companies is next.

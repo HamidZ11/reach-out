@@ -3,17 +3,15 @@ import type { ComponentType } from "react";
 import { describe, expect, it } from "vitest";
 import type { SectionId } from "@/features/sections";
 import { SECTIONS } from "@/features/sections";
-import CompaniesPage from "./(app)/companies/page";
 import SettingsPage from "./(app)/settings/page";
 import OnboardingPage from "./onboarding/page";
 
-/** Sections still served by the placeholder. Today, People, Pursuing and Outreach are built (see src/features). */
+/** Sections still served by the placeholder. Settings and Onboarding are not built yet (see src/features). */
 const pages: Record<
-  Exclude<SectionId, "today" | "people" | "opportunities" | "outreach">,
+  Exclude<SectionId, "today" | "people" | "opportunities" | "outreach" | "companies">,
   ComponentType
 > = {
   onboarding: OnboardingPage,
-  companies: CompaniesPage,
   settings: SettingsPage,
 };
 

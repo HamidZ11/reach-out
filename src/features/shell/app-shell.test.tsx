@@ -2,7 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "./app-shell";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/today" }));
+const location = vi.hoisted(() => ({ pathname: "/today", search: "" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => location.pathname,
+  useSearchParams: () => new URLSearchParams(location.search),
+}));
 
 describe("app shell", () => {
   it("desktop rail: every app destination, with Today marked as current", () => {
@@ -46,5 +50,33 @@ describe("app shell", () => {
       "/opportunities",
       "/outreach",
     ]);
+  });
+
+  it("phone tabs: a company opened from an opportunity keeps Pursuing marked", () => {
+    const current = () => {
+      const [, tabs] = screen.getAllByRole("navigation", { name: "Sections" });
+      return within(tabs!)
+        .getAllByRole("link")
+        .filter((a) => a.getAttribute("aria-current") === "page")
+        .map((a) => a.textContent);
+    };
+    Object.assign(location, { pathname: "/companies", search: "company=cmp_01&from=opp_01" });
+    const { unmount } = render(
+      <AppShell userName="Aisha Rahman" attention={false}>
+        <p>Page</p>
+      </AppShell>,
+    );
+    expect(current()).toEqual(["Pursuing"]);
+    unmount();
+
+    // Opened any other way, Companies marks no tab: it is never one of the four.
+    Object.assign(location, { pathname: "/companies", search: "company=cmp_01" });
+    render(
+      <AppShell userName="Aisha Rahman" attention={false}>
+        <p>Page</p>
+      </AppShell>,
+    );
+    expect(current()).toEqual([]);
+    Object.assign(location, { pathname: "/today", search: "" });
   });
 });

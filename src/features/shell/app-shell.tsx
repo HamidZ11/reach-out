@@ -2,11 +2,12 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import * as Icon from "@/components/icons";
-import { SECTIONS } from "@/features/sections";
+import { OpportunityIdSchema } from "@/domain/ids";
+import { FROM_PARAM, SECTIONS } from "@/features/sections";
 import s from "./app-shell.module.css";
 
 type NavIcon = (props: { size?: number; weight?: number; filled?: boolean }) => ReactNode;
@@ -66,6 +67,11 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const params = useSearchParams();
+  // Companies has no tab: opened from an opportunity, the bar keeps Pursuing marked.
+  const fromOpportunity =
+    isCurrent(pathname, SECTIONS.companies.href) &&
+    OpportunityIdSchema.safeParse(params.get(FROM_PARAM)).success;
   return (
     <div className={s.shell}>
       <a href="#main" className={s.skip}>
@@ -99,7 +105,9 @@ export function AppShell({
 
       <nav className={s.tabs} aria-label="Sections">
         {TABS.map((item) => {
-          const current = isCurrent(pathname, item.href);
+          const current =
+            isCurrent(pathname, item.href) ||
+            (fromOpportunity && item.href === SECTIONS.opportunities.href);
           return (
             <Link
               key={item.href}

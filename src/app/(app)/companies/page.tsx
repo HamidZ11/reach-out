@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
-import { RoutePlaceholder } from "@/components/route-placeholder";
+import { connection } from "next/server";
+import { Companies } from "@/features/companies/companies";
 import { SECTIONS } from "@/features/sections";
+import { loadWorkspace } from "@/features/workspace/load-workspace";
+import { getRepository } from "@/server/repository";
 
-const section = SECTIONS.companies;
+export const metadata: Metadata = { title: SECTIONS.companies.label };
 
-export const metadata: Metadata = { title: section.label };
-
-export default function CompaniesPage() {
-  return <RoutePlaceholder title={section.label} question={section.question} />;
+/** Companies, gathered from the user's records through the Repository, with their sourced facts. */
+export default async function CompaniesPage() {
+  await connection(); // per request: what's active and who needs you depend on the date
+  const workspace = await loadWorkspace(await getRepository(), new Date(), { research: true });
+  return <Companies workspace={workspace} />;
 }

@@ -71,9 +71,9 @@ function OpportunityRow({
   );
 }
 
-/* ——— Who you know there, read the way People reads them ——— */
+/* ——— Who you know there, read the way People reads them. Shared with Companies. ——— */
 
-function PersonLine({
+export function PersonLine({
   person,
   day,
   context,
