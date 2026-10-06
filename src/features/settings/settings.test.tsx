@@ -6,6 +6,7 @@ import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate } from "@/domain/time";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
 import type { Workspace } from "@/features/workspace/records";
+import type { GmailActions, GmailSettings } from "./gmail";
 import type { SettingsActions } from "./operations";
 import { GoalsInput, ProfileInput, saveGoalsStep, saveProfileStep } from "./operations";
 import type { Account } from "./settings";
@@ -34,9 +35,26 @@ function actionsFor(repository: Repository): SettingsActions {
   };
 }
 
+const NO_GMAIL: GmailSettings = { available: false, connection: null };
+
+function gmailActionsFake(overrides: Partial<GmailActions> = {}): GmailActions {
+  return {
+    connect: vi.fn(() => Promise.resolve()),
+    check: vi.fn(() => Promise.resolve({ ok: false as const, message: "unused" })),
+    disconnect: vi.fn(() => Promise.resolve({ ok: false as const, message: "unused" })),
+    ...overrides,
+  };
+}
+
 function renderSettings(
   w: Workspace = workspace,
-  options: { actions?: SettingsActions; account?: Account } = {},
+  options: {
+    actions?: SettingsActions;
+    account?: Account;
+    gmail?: GmailSettings;
+    gmailActions?: GmailActions;
+    notice?: string;
+  } = {},
 ) {
   // A fresh account per render, holding exactly what the workspace shows.
   const repository = createSeedRepository(createSeedDataset(ANCHOR), SEED_USER_ID);
@@ -49,6 +67,9 @@ function renderSettings(
       workspace={w}
       actions={options.actions ?? actionsFor(repository)}
       account={account}
+      gmail={options.gmail ?? NO_GMAIL}
+      gmailActions={options.gmailActions ?? gmailActionsFake()}
+      notice={options.notice}
     />,
   );
   const layout = (name: "desktop" | "phone") => {
@@ -175,8 +196,10 @@ describe("production Settings", () => {
   it("says plainly what isn't built: no controls that pretend to work", () => {
     const { desktop } = renderSettings();
     const accounts = within(desktop.getByRole("region", { name: "Connected accounts" }));
-    expect(accounts.getByText("Later")).toBeInTheDocument();
-    expect(accounts.getByText(/It will only ever send what you have approved/)).toBeInTheDocument();
+    // Gmail not set up on this deployment: said, not offered.
+    expect(accounts.getByText("Not available yet")).toBeInTheDocument();
+    expect(accounts.getByText(/It isn't set up on this site yet/)).toBeInTheDocument();
+    expect(accounts.getByText(/never sends, changes or deletes mail/)).toBeInTheDocument();
     expect(accounts.getByText(/Never connected/)).toBeInTheDocument();
     expect(accounts.queryByRole("button")).toBeNull();
     expect(accounts.queryByRole("link")).toBeNull();
@@ -241,5 +264,98 @@ describe("production Settings", () => {
       fireEvent.keyDown(document, { key });
     }
     expect(desktop.element.innerHTML).toBe(before);
+  });
+});
+
+describe("Settings › Gmail (D-031)", () => {
+  const connected = {
+    emailAddress: "kofi.asante@gmail.example",
+    status: "connected" as const,
+    connectedAt: workspace?.now ?? ("2026-10-05T08:00:00.000Z" as never),
+    lastSyncedAt: "2026-10-05T08:32:00.000Z" as never,
+  };
+  const accounts = (desktop: ReturnType<typeof renderSettings>["desktop"]) =>
+    within(desktop.getByRole("region", { name: "Connected accounts" }));
+
+  it("not connected: says what it does and offers Connect", () => {
+    const gmailActions = gmailActionsFake();
+    const { desktop } = renderSettings(workspace, {
+      gmail: { available: true, connection: null },
+      gmailActions,
+    });
+    expect(accounts(desktop).getByText(/^Not connected\./)).toBeInTheDocument();
+    fireEvent.click(accounts(desktop).getByRole("button", { name: "Connect" }));
+    expect(gmailActions.connect).toHaveBeenCalledOnce();
+  });
+
+  it("connected: the address, when it last looked, Check now and Disconnect", async () => {
+    const gmailActions = gmailActionsFake({
+      check: vi.fn(() =>
+        Promise.resolve({
+          ok: true as const,
+          connection: { ...connected, lastSyncedAt: "2026-10-05T08:40:00.000Z" as never },
+          message: "Checked Gmail. One message added to your history.",
+        }),
+      ),
+      disconnect: vi.fn(() =>
+        Promise.resolve({
+          ok: true as const,
+          connection: null,
+          message: "Gmail disconnected. What it added to your history stays.",
+        }),
+      ),
+    });
+    const { desktop } = renderSettings(workspace, {
+      gmail: { available: true, connection: connected },
+      gmailActions,
+    });
+    const gmail = accounts(desktop);
+    expect(gmail.getByText("kofi.asante@gmail.example")).toBeInTheDocument();
+    expect(gmail.getByText("Last checked 09:32, Mon 5 Oct")).toBeInTheDocument();
+
+    fireEvent.click(gmail.getByRole("button", { name: "Check now" }));
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "Checked Gmail. One message added to your history.",
+      ),
+    );
+    expect(accounts(desktop).getByText("Last checked 09:40, Mon 5 Oct")).toBeInTheDocument();
+
+    fireEvent.click(accounts(desktop).getByRole("button", { name: "Disconnect" }));
+    await waitFor(() =>
+      expect(accounts(desktop).getByText(/^Not connected\./)).toBeInTheDocument(),
+    );
+    expect(desktop.getByRole("status")).toHaveTextContent("What it added to your history stays.");
+    // Nothing about Gmail is undoable.
+    expect(within(desktop.getByRole("status")).queryByRole("button")).toBeNull();
+  });
+
+  it("revoked: says it needs reconnecting, and offers Reconnect", () => {
+    const gmailActions = gmailActionsFake();
+    const { desktop } = renderSettings(workspace, {
+      gmail: {
+        available: true,
+        connection: { ...connected, status: "needs_reconnect", lastError: "revoked" },
+      },
+      gmailActions,
+    });
+    expect(accounts(desktop).getByText(/^Reconnect needed/)).toBeInTheDocument();
+    fireEvent.click(accounts(desktop).getByRole("button", { name: "Reconnect" }));
+    expect(gmailActions.connect).toHaveBeenCalledOnce();
+  });
+
+  it("says how connecting went, once, on arrival", () => {
+    const { desktop } = renderSettings(workspace, {
+      gmail: { available: true, connection: connected },
+      notice: "Gmail connected. Reachout will notice what you send and receive from now on.",
+    });
+    expect(desktop.getByRole("status")).toHaveTextContent(/^Gmail connected\./);
+  });
+
+  it("the connection's credentials never reach the page", () => {
+    const { container } = renderSettings(workspace, {
+      gmail: { available: true, connection: connected },
+    });
+    expect(container.innerHTML).not.toMatch(/refresh|token|sealed|v1\./i);
   });
 });

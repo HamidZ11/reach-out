@@ -23,7 +23,7 @@ export function announceResult(
   onSaved?: () => void,
 ) {
   if (result.ok) {
-    announce(success);
+    announce(success, { undoable: result.undoable });
     onSaved?.();
   } else if (!result.ignored) {
     announce(result.message, { undoable: false });
@@ -47,6 +47,13 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
   const { item, person, action, draft, opportunity } = ctx;
   const first = person ? firstName(person.name) : "";
   const [mode, setMode] = useState<null | "write" | "edit">(null);
+  // Marking as sent is final (D-030), so it takes a second, deliberate press.
+  const [confirmingSend, setConfirmingSend] = useState(false);
+  useEffect(() => {
+    if (!confirmingSend) return;
+    const timer = setTimeout(() => setConfirmingSend(false), 8000);
+    return () => clearTimeout(timer);
+  }, [confirmingSend]);
   const [text, setText] = useState<DraftText>(() => initialDraft(ctx));
   const channel = person ? channelFor(person, ctx) : "email";
   const snoozeTo = action?.status === "open" ? shortDay(day.snoozeTarget(action)) : undefined;
@@ -141,9 +148,17 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
       primary = draft
         ? {
             id: "sent",
-            label: "Mark as sent",
+            label: confirmingSend ? "Yes, I sent it" : "Mark as sent",
             icon: <Icon.Send size={16} weight={2} />,
             run: () => {
+              if (!confirmingSend) {
+                setConfirmingSend(true);
+                announce("This can't be undone. Once you've sent it, choose “Yes, I sent it”.", {
+                  undoable: false,
+                });
+                return;
+              }
+              setConfirmingSend(false);
               void day
                 .markSent(draft.id)
                 .then((r) =>

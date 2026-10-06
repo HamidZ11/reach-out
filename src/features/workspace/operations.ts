@@ -176,7 +176,7 @@ export function reviseDraftStep(
 /**
  * The user sent an approved draft from their own email or LinkedIn. Records
  * the message_sent it became and moves the relationship forward. Nothing is
- * sent from Reachout.
+ * sent from Reachout. Final: there is no Undo for it (D-030).
  */
 export function markDraftSentStep(
   repository: Repository,
@@ -214,7 +214,6 @@ export function markDraftSentStep(
     );
     return {
       changes: { drafts: [sent.draft], interactions: [sent.interaction], people: [sent.person] },
-      undo: sent.undo,
     };
   });
 }

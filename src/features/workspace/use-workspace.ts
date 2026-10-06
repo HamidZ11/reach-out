@@ -17,7 +17,8 @@ import { indexRecords } from "./records";
 
 /** How a change went, for the announcer. `ignored`: another change was still saving. */
 export type ActResult =
-  | { ok: true }
+  /** `undoable`: Undo can put it back. Some changes are final (D-030). */
+  | { ok: true; undoable: boolean }
   | { ok: false; ignored: true }
   | { ok: false; ignored?: false; problem: Problem; message: string };
 
@@ -29,7 +30,8 @@ export type ActResult =
  * `deriveToday` from the saved records.
  *
  * Undo puts back exactly what the last action changed, through the same
- * actions, as long as nothing has changed it since.
+ * actions, as long as nothing has changed it since. Marking a message sent is
+ * final and offers no Undo (D-030).
  */
 export function useWorkspace(snapshot: Workspace, actions: WorkspaceActions) {
   const { now, today, user } = snapshot;
@@ -37,6 +39,16 @@ export function useWorkspace(snapshot: Workspace, actions: WorkspaceActions) {
   const [nextActions, setNextActions] = useState<NextAction[]>(snapshot.nextActions);
   const [drafts, setDrafts] = useState<Draft[]>(snapshot.drafts);
   const [interactions, setInteractions] = useState<Interaction[]>(snapshot.interactions);
+  // A fresh read from the server (after a change, or a Gmail check) is the
+  // truth: take it in place of what's on screen.
+  const [adopted, setAdopted] = useState(snapshot);
+  if (adopted !== snapshot) {
+    setAdopted(snapshot);
+    setPeople(snapshot.people);
+    setNextActions(snapshot.nextActions);
+    setDrafts(snapshot.drafts);
+    setInteractions(snapshot.interactions);
+  }
   // Undo steps for this page's actions, newest last.
   const [steps, setSteps] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
@@ -112,8 +124,10 @@ export function useWorkspace(snapshot: Workspace, actions: WorkspaceActions) {
       }
       apply(outcome.changes);
       const undo = outcome.undo;
-      if (undo) setSteps((s) => [...s, undo].slice(-20));
-      return { ok: true };
+      // Undo always means the last action: a final change (like marking a
+      // message sent) ends what came before it, too.
+      setSteps((s) => (undo ? [...s, undo].slice(-20) : []));
+      return { ok: true, undoable: Boolean(undo) };
     } catch (error) {
       console.error("A workspace change could not be sent", error);
       return { ok: false, problem: "unavailable", message: problemMessage("unavailable") };

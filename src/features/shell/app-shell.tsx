@@ -4,6 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { Avatar } from "@/components/avatar";
 import * as Icon from "@/components/icons";
 import { OpportunityIdSchema } from "@/domain/ids";
@@ -61,14 +62,24 @@ export function AppShell({
   userName,
   attention,
   current,
+  onEnter,
   children,
 }: {
   userName: string;
   attention: boolean;
   /** The section to mark when the address isn't one (onboarding ends inside Today). */
   current?: Route;
+  /** Runs once on entering the app, after it has loaded (a Gmail check when one is due). */
+  onEnter?: () => Promise<unknown>;
   children: ReactNode;
 }) {
+  // Once per entry: a refresh after a change re-renders the shell, but isn't an entry.
+  const entered = useRef(false);
+  useEffect(() => {
+    if (entered.current || !onEnter) return;
+    entered.current = true;
+    void onEnter().catch(() => undefined);
+  }, [onEnter]);
   const path = usePathname();
   const pathname = current ?? path;
   const params = useSearchParams();

@@ -2,6 +2,49 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-06 · Gmail correspondence tracking, final mark-sent, launch hardening
+
+On `feat/gmail-launch`. Gmail now keeps relationship history accurate without manual tracking, and the app is hardened for launch. No AI was added, nothing was deployed, and approved surfaces weren't redesigned. The few new states await visual review (DESIGN.md).
+
+- **Marking a message sent is final (D-030):**
+  - no undo step, in the database, both repositories or the UI;
+  - Undo can never remove a recorded message or bring a sent draft back;
+  - "Mark as sent" takes a deliberate second press ("Yes, I sent it");
+  - complete, snooze, approve, edit and writing a draft keep Undo.
+- **Gmail, read-only (D-031):**
+  - connected from Settings with Google's web-server OAuth: PKCE, a sealed state cookie bound to the user, an exact callback, and one scope, `gmail.metadata` (headers only);
+  - refresh tokens sealed with AES-256-GCM in `private.gmail_credentials`;
+  - incremental history sync on entering the app (at most every ten minutes, after load) and on "Check now", with a database lease, a time budget and request timeouts;
+  - exact-address matching, each message recorded once per person as an ordinary interaction, and reconciliation with approved drafts and hand-marked messages;
+  - revocation leads to "Reconnect needed"; disconnect removes the credentials and revokes the grant, and history stays;
+  - Gmail never sends, changes or deletes mail.
+- **Screens follow fresh server reads:** after a change or a Gmail check, the page takes in the refreshed records, so a reply Gmail found appears without a reload.
+- **Hardening:**
+  - Postgres rate limits with HMAC'd keys (D-032) for sign-in links (per address and per client), Gmail connections and "Check now";
+  - sign-in normalises addresses and answers identically whether or not an account exists, including when sign-ups are closed;
+  - a nonce-based CSP with no `unsafe-eval` in production, plus frame, MIME, referrer, permissions, opener and HSTS headers (D-033);
+  - `X-Powered-By` is off;
+  - a new `integrations` layer with lint boundaries.
+- **Migrations, applying in order on a fresh database:** `mark_sent_is_final`, `gmail_correspondence`, `rate_limits`.
+- **Docs:** decisions D-030 to D-033; DOMAIN's Undo and mailbox rules; ARCHITECTURE's Gmail and Security sections; and the launch checklist rewritten with the exact Supabase, Auth, Google Cloud and environment steps.
+
+**Verified:**
+
+- `pnpm check` and `pnpm audit --prod` (no known vulnerabilities; one dev-only advisory in `eslint-config-next` → `braces`, with no patched version).
+- `pnpm test:db`: 41 tests on the local Supabase:
+  - the Repository and Gmail sync contracts, with Google faked;
+  - two-account isolation, including Gmail connections, credentials, lease and recording;
+  - rate limits.
+- `pnpm db:test`: 15 pgTAP checks.
+- Headless Chrome, DOM only, on a production build with Gmail configured:
+  - 56 checks of the full journey, including the two-step mark-sent, Connect reaching Google's consent screen (intercepted, never contacted), and a forged callback refused;
+  - 5 checks of the sign-in rate limit and the reconnect and disconnect states;
+  - 32 width checks (1440, 1024, 390 and 320px) across sign-in, onboarding and every app page, and the same 32 on the dev server;
+  - the database-outage check (7) again, with no slower failure than before;
+  - no console errors or CSP violations.
+
+**Not verified:** a real Google OAuth client and real Gmail, Google's verification of the restricted scope, any hosted Supabase project or deployment, real email delivery, and real phones.
+
 ## 2026-10-06 · Accounts and durable persistence
 
 On `feat/auth-persistence`. Reachout now has real accounts and keeps what you do. Nothing was redesigned. Gmail, AI and deployment were not started.

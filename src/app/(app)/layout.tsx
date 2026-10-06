@@ -4,6 +4,7 @@ import { calendarDateIn } from "@/domain/time";
 import { AppShell } from "@/features/shell/app-shell";
 import { loadToday } from "@/features/today/load-today";
 import { getRepository } from "@/server/repository";
+import { syncGmailOnEntry } from "./actions";
 
 /**
  * The signed-in application area, inside the approved shell (DESIGN.md ›
@@ -22,7 +23,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   if (!user.onboardingCompletedAt) redirect("/onboarding");
   const items = await loadToday(repository, calendarDateIn(new Date(), user.timeZone));
   return (
-    <AppShell userName={user.name} attention={items.length > 0}>
+    <AppShell userName={user.name} attention={items.length > 0} onEnter={syncGmailOnEntry}>
       {children}
     </AppShell>
   );

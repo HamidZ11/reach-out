@@ -17,8 +17,8 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 | 4     | Opportunities + Companies     | **Done**: Pursuing and Companies built and approved                                                                                                     |
 | 5     | Outreach & correspondence     | **In progress**: Outreach built and approved; the approval gate is saved and enforced by the database; logging replies and closing outreach not started |
 | 6     | Accounts & persistence        | **Built, not deployed**: sign-in, durable data and RLS done and verified locally; deployment and account deletion not done                              |
-| 7     | Gmail integration             | Not started                                                                                                                                             |
-| 8     | Polish & launch preparation   | Not started                                                                                                                                             |
+| 7     | Gmail integration             | **Built, not verified with Google**: read-only tracking of sent and received mail, verified locally with Google faked; Google verification not started  |
+| 8     | Polish & launch preparation   | **In progress**: security hardening (rate limits, CSP, headers, audit) done locally; launch checklist written; accessibility audit, pilot not started   |
 | 9     | Outreach intelligence         | Future                                                                                                                                                  |
 
 ## 0 · Foundation (done)
@@ -143,21 +143,28 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 
 ## 7 · Gmail integration
 
-**Objective:** send approved drafts and notice replies without leaving Reachout.
+**Objective:** keep relationship history accurate from the user's own Gmail, without sending anything (D-031).
 
-**Scope:**
+**Scope, and where it stands:**
 
-- Gmail OAuth with minimal scopes.
-- Sending approved drafts only.
-- Reply detection in tracked threads.
-- Idempotent sync through an adapter-owned id mapping.
+- **Done, locally:**
+  - connect from Settings (OAuth with PKCE and state; one read-only scope, `gmail.metadata`);
+  - refresh tokens sealed with AES-256-GCM, in a table the Data API can't reach;
+  - incremental sync on entering the app and on "Check now";
+  - exact-address matching, and sent and received messages recorded once each;
+  - reconciliation with approved drafts and hand-marked messages;
+  - disconnect (credentials removed, grant revoked), and reconnect after revocation;
+  - "Mark as sent" kept as the fallback, and made final (D-030).
+- **Changed from the original plan:** Reachout doesn't send through Gmail. Sending approved drafts would need its own decision.
+- **Not done:** a real Google OAuth client, Google's verification of the restricted scope, and live checks (docs/launch-checklist.md).
 
 **Acceptance:**
 
-- A sent message produces exactly one `message_sent`.
-- A reply produces exactly one `message_received` and appears in Today.
-- No inbox-wide import.
-- Disconnecting removes the tokens.
+- A sent message produces exactly one `message_sent`. Done: tested in memory and on the local database, with Google faked.
+- A reply produces exactly one `message_received` and appears in Today. Done: tested the same way.
+- No inbox-wide import. Done: only mail with tracked people is stored, from the connection onwards.
+- Disconnecting removes the tokens. Done.
+- With a real Google account: **not verified**.
 
 ## 8 · Polish & launch preparation
 

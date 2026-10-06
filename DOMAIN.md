@@ -54,8 +54,14 @@ Interpretation ──▶ subject, plus the SourceFacts it is based on (1..n)
 
 - reopen a completed action;
 - move a snoozed one back;
-- return an approved draft to awaiting approval, or a sent one to approved, removing the `message_sent` it recorded and restoring the person's status;
+- return an approved draft to awaiting approval;
 - remove a draft just written.
+
+**Marking a message sent is final** (D-030). It records a real-world event, so:
+
+- it has no Undo, and nothing undoes a recorded message or brings a sent draft back;
+- it takes a deliberate second press;
+- a correction, if one is ever needed, will be its own workflow.
 
 ## User
 
@@ -179,6 +185,25 @@ Three layers, never collapsed into one field:
 - A recommended draft is a `Draft` with `origin: "generated"`. It is approved like any other draft, and appears in Today as one awaiting approval.
 - A suggested follow-up becomes a `NextAction` only when the user accepts it.
 - It reads stored records only. It never writes facts or notes, and deterministic rules still never read interpretations.
+
+## Correspondence seen in a mailbox (Gmail)
+
+With Gmail connected (D-031), messages the user sends and receives can join a person's history without being typed in. The rules are in [correspondence.ts](src/domain/correspondence.ts); the provider adapter only translates.
+
+- **Matching** is by exact email address on a person the user added:
+  - a message the user sent is with every tracked recipient (To, Cc, Bcc);
+  - a message they received is with its tracked sender;
+  - display names, companies, subjects and guesses never match, an address two people share matches nobody, and a person without an address is never matched.
+- **What it becomes:**
+  - an ordinary `message_sent` or `message_received` interaction (channel `email`, the subject, when it was sent);
+  - relationship status follows `relationshipStatusAfter`, exactly as for one recorded by hand;
+  - outreach state and Today follow from the new interaction. A reply surfaces as `reply_awaiting_response`.
+- **Once only:** a provider message becomes at most one interaction per person, however often it is seen.
+- **A sent message and what Reachout already holds:**
+  1. If the user already marked the same message sent by hand (an email to that person, same subject, within three days, not yet linked), the two are linked and nothing is added.
+  2. Otherwise, if exactly one approved email draft to that person has the same subject and was approved before it went out, that draft is marked sent by this message.
+  3. Otherwise the message is recorded and no draft changes.
+- **Not stored:** message bodies, attachments, and mail with anyone not tracked. Unsent drafts, spam, trash and chat are ignored.
 
 ## Outreach state (derived)
 

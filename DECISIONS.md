@@ -260,7 +260,7 @@ The Postgres access layer is `@supabase/supabase-js` on the server, with no ORM.
 
 **Consequence:** a new kind of write needs a migration adding a function, its grants, and tests in the database suite.
 
-## D-028 · Undo is durable and exact
+## D-028 · Undo is durable and exact — _Mark as sent excepted by D-030_
 
 _2026-10-06 · Accepted_
 
@@ -279,3 +279,116 @@ The approved UI offers Undo after every action. With persistence, Undo puts back
 _2026-10-06 · Accepted_
 
 Every signed-in route reads the session and the user's records per request (`connection()`, `getRepository()`). Nothing is cached across users or requests. **Why:** per-user data and fail-closed auth are simpler to reason about without Partial Prerendering. **Consequence:** revisit with a performance budget in phase 8. This supersedes D-018.
+
+## D-030 · Marking a message sent is final
+
+_2026-10-06 · Accepted_
+
+"Mark as sent" records something that happened outside Reachout, so it is no longer part of Undo.
+
+- Marking as sent records no undo step. Undo can never remove a recorded message, or return a sent draft to approved, whatever step asks. The database refuses both (`undo_step`).
+- Because it is final, it takes a deliberate second press. "Mark as sent" first says it can't be undone; "Yes, I sent it" records it. The prompt resets after eight seconds.
+- A successful final action ends the session's undo history, so Undo always means "the last action".
+- Complete, snooze, approve, edit and writing a draft keep their exact Undo (D-028).
+- Manual marking and Gmail detection share this rule (D-031).
+- If a correction is ever needed, it will be its own explicit workflow, not Undo.
+
+**Why:** the human decided that a sent message is a real-world event, not an edit.
+
+**Consequence:** this supersedes the part of D-028 that let Undo revert "Mark as sent".
+
+## D-031 · Gmail is a read-only correspondence connector
+
+_2026-10-06 · Accepted_
+
+Gmail exists to keep relationship history accurate without manual tracking. It never sends, changes or deletes mail; manual "Mark as sent" stays as the fallback.
+
+- **Separate from sign-in.** Supabase Auth remains Reachout's sign-in (D-026). Google OAuth only authorises Gmail access, connected from Settings.
+- **Flow:**
+  - Google's web-server flow, started by a Server Action;
+  - PKCE (S256) and a random `state`, sealed in a ten-minute httpOnly cookie scoped to `/settings/gmail/callback`;
+  - the callback requires the same state, the same signed-in user, the Gmail scope granted, and the exact registered redirect URI, and returns only to `/settings`.
+- **One scope: `gmail.metadata`.**
+  - Headers and labels only: no bodies, no attachments, no changes. It is the narrowest scope that can see what was sent and received.
+  - `gmail.readonly` was rejected because it exposes message bodies Reachout doesn't need.
+  - Like any Gmail scope, it is "restricted" and needs Google's verification before public launch.
+- **Tokens:**
+  - The refresh token is sealed with AES-256-GCM (Node crypto), using the server key `GMAIL_TOKEN_ENCRYPTION_KEY` and the owner as associated data, and stored in `private.gmail_credentials`, which the Data API can't reach.
+  - Access tokens live only for one sync.
+  - Tokens are never logged, sent to a browser, or put in an error.
+  - Rotation: deploy a new key and keep the old one as `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` until connections are re-sealed, or ask users to reconnect.
+- **Sync:**
+  - incremental, from the Gmail history cursor taken when the account was connected; earlier mail is not imported;
+  - runs on entering the app (at most every ten minutes, after the page has loaded) and on "Check now" (rate-limited);
+  - a database lease means one sync at a time per account;
+  - each run has a 20-second budget and per-request timeouts of 8 seconds, and saves its cursor after each change;
+  - no push notifications or Pub/Sub in V1.
+- **Matching (`src/domain/correspondence.ts`):**
+  - only an exact email address on a person the user added;
+  - sent mail matches every tracked recipient; received mail matches only a tracked sender;
+  - never a display name, company, subject or guess;
+  - an address two people share matches nobody, and people without an address are never matched.
+- **What is stored:** only matched messages, as ordinary interactions (subject and time, channel email), plus a mapping in `gmail_messages` from the provider id to that interaction. Recording is exactly once per provider message and person.
+- **Reconciliation:**
+  1. A sent message that matches a hand-marked message to the same person (same subject, within three days, not yet linked) is linked to it, not added again.
+  2. Otherwise, exactly one approved email draft for that person with the same subject, approved before it went out, is marked sent by it.
+  3. Anything uncertain records the message and changes no draft.
+- **Failure:**
+  - A revoked or narrowed grant marks the connection "needs reconnecting" and stops syncing.
+  - Outages change nothing and retry later.
+  - The rest of Reachout never waits for Gmail.
+- **Disconnect** deletes the connection and credentials, keeps recorded history, and asks Google to revoke the grant (best effort; Settings says if that failed).
+
+**Why:** it captures correspondence with the least access and no ability to act on the mailbox.
+
+**Consequence:**
+
+- Sending through Gmail is not built and would need its own decision.
+- A user who calls the database functions directly can only add Gmail-sourced history to their own workspace, which is no more than they could record by hand.
+
+## D-032 · Application rate limits live in Postgres
+
+_2026-10-06 · Accepted_
+
+Supabase sees Reachout's server rather than each student, so its per-IP auth limits would be shared by everyone. Reachout keeps its own small limits in `private.rate_limit_hits`, through `take_rate_limit`, using fixed windows:
+
+| What                       | Limit             |
+| -------------------------- | ----------------- |
+| Sign-in links per address  | 5 per 15 minutes  |
+| Sign-in links per client   | 30 per 15 minutes |
+| Gmail connections per user | 10 per hour       |
+| "Check now" per user       | 6 per 5 minutes   |
+
+- Keys are HMAC-SHA256 values computed with `REACHOUT_RATE_LIMIT_SECRET`, which production requires. The database never holds an address, and nobody can spend another person's allowance.
+- Limits are set in the database function, not by the caller.
+- Sign-in fails open if the limiter itself is unreachable, because Supabase's own limits still apply. Gmail actions fail closed.
+- Account-enumeration resistance stands: known, new and refused addresses get the same answer, including when sign-ups are closed.
+- CAPTCHA stays a hosted configuration choice (docs/launch-checklist.md).
+
+**Why:** durable and small, with no new infrastructure.
+
+## D-033 · A strict Content Security Policy with per-request nonces
+
+_2026-10-06 · Accepted_
+
+**What the Proxy sets on every page:**
+
+- A CSP with a fresh nonce for scripts and `strict-dynamic`. There is no `unsafe-eval` in production; development adds it for React's tooling.
+- `default-src`, `connect-src` and `form-action` are `'self'`; `frame-ancestors` and `object-src` are `'none'`; `base-uri` is `'self'`.
+- `upgrade-insecure-requests` is sent over https only.
+- Styles allow `'unsafe-inline'`, because two components set CSS variables through `style` attributes. Scripts never allow it.
+
+**What `next.config.ts` adds everywhere:**
+
+- `X-Frame-Options: DENY`;
+- `X-Content-Type-Options: nosniff`;
+- `Referrer-Policy: strict-origin-when-cross-origin`;
+- a closed `Permissions-Policy`;
+- `Cross-Origin-Opener-Policy: same-origin`;
+- HSTS.
+
+`X-Powered-By` is off.
+
+**Why:** XSS and clickjacking defences that the app's design already allows, because every page renders per request (D-029) and nothing loads third-party scripts.
+
+**Consequence:** adding any external script, style, font or connection needs a CSP change and a reason.

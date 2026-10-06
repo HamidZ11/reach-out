@@ -136,6 +136,121 @@ export type Database = {
           },
         ];
       };
+      gmail_connections: {
+        Row: {
+          connected_at: string;
+          email_address: string;
+          history_cursor: string | null;
+          id: string;
+          last_error: string | null;
+          last_synced_at: string | null;
+          profile_id: string;
+          scopes: string[];
+          status: string;
+          sync_started_at: string | null;
+          updated_at: string;
+          workspace_id: string;
+        };
+        Insert: {
+          connected_at: string;
+          email_address: string;
+          history_cursor?: string | null;
+          id?: string;
+          last_error?: string | null;
+          last_synced_at?: string | null;
+          profile_id: string;
+          scopes: string[];
+          status: string;
+          sync_started_at?: string | null;
+          updated_at: string;
+          workspace_id: string;
+        };
+        Update: {
+          connected_at?: string;
+          email_address?: string;
+          history_cursor?: string | null;
+          id?: string;
+          last_error?: string | null;
+          last_synced_at?: string | null;
+          profile_id?: string;
+          scopes?: string[];
+          status?: string;
+          sync_started_at?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "gmail_connections_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "gmail_connections_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: true;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      gmail_messages: {
+        Row: {
+          direction: string;
+          interaction_id: string;
+          interaction_kind: string | null;
+          person_id: string;
+          provider_message_id: string;
+          recorded_at: string;
+          thread_id: string | null;
+          workspace_id: string;
+        };
+        Insert: {
+          direction: string;
+          interaction_id: string;
+          interaction_kind?: never;
+          person_id: string;
+          provider_message_id: string;
+          recorded_at: string;
+          thread_id?: string | null;
+          workspace_id: string;
+        };
+        Update: {
+          direction?: string;
+          interaction_id?: string;
+          interaction_kind?: never;
+          person_id?: string;
+          provider_message_id?: string;
+          recorded_at?: string;
+          thread_id?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "gmail_messages_interaction_fkey";
+            columns: ["workspace_id", "interaction_id", "person_id", "interaction_kind"];
+            isOneToOne: false;
+            referencedRelation: "interactions";
+            referencedColumns: ["workspace_id", "id", "person_id", "kind"];
+          },
+          {
+            foreignKeyName: "gmail_messages_person_fkey";
+            columns: ["workspace_id", "person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["workspace_id", "id"];
+          },
+          {
+            foreignKeyName: "gmail_messages_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       interactions: {
         Row: {
           body: string | null;
@@ -786,6 +901,7 @@ export type Database = {
     };
     Functions: {
       approve_draft: { Args: { p_at: string; p_expected: string; p_id: string }; Returns: Json };
+      begin_gmail_sync: { Args: { p_min_interval_seconds: number }; Returns: Json };
       bootstrap_account: {
         Args: { p_at: string; p_name: string; p_time_zone: string };
         Returns: string;
@@ -795,7 +911,23 @@ export type Database = {
         Returns: Json;
       };
       complete_onboarding: { Args: { p_at: string; p_records: Json }; Returns: undefined };
+      connect_gmail: {
+        Args: {
+          p_at: string;
+          p_email: string;
+          p_history_cursor: string;
+          p_key_id: string;
+          p_scopes: string[];
+          p_sealed_refresh_token: string;
+        };
+        Returns: Json;
+      };
       create_draft: { Args: { p_draft: Json }; Returns: Json };
+      disconnect_gmail: { Args: Record<PropertyKey, never>; Returns: Json };
+      finish_gmail_sync: {
+        Args: { p_connection: string; p_history_cursor: string; p_outcome: string };
+        Returns: undefined;
+      };
       mark_draft_sent: {
         Args: {
           p_at: string;
@@ -808,6 +940,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      record_gmail_message: { Args: { p_message: Json }; Returns: Json };
       reschedule_next_action: {
         Args: { p_at: string; p_due_on: string; p_expected: string; p_id: string };
         Returns: Json;
@@ -827,6 +960,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      take_rate_limit: { Args: { p_bucket: string; p_key_hash: string }; Returns: boolean };
       undo_step: { Args: { p_step: string }; Returns: Json };
     };
     Enums: {

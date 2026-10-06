@@ -204,12 +204,20 @@ describe("production Outreach — approval workflow", () => {
     const { desktop, unmount } = renderOutreach(saved, repository);
     const ready = section(desktop, /^Approved, ready to send/);
     const sofia = within(ready.getByText("Sofia Petrova").closest("li") as HTMLElement);
+    // Final (D-030), so deliberate: the first press asks, the second records.
     fireEvent.click(sofia.getByRole("button", { name: "Mark as sent" }));
+    expect(desktop.getByRole("status")).toHaveTextContent(/^This can't be undone\./);
+    expect(desktop.queryByRole("region", { name: /^Sent, waiting to hear/ })).not.toHaveTextContent(
+      "Sofia Petrova",
+    );
+    fireEvent.click(sofia.getByRole("button", { name: "Yes, I sent it" }));
     await waitFor(() =>
       expect(desktop.getByRole("status")).toHaveTextContent(
         "Marked as sent to Sofia Petrova. It's in your history.",
       ),
     );
+    // A recorded message has no Undo.
+    expect(within(desktop.getByRole("status")).queryByRole("button", { name: "Undo" })).toBeNull();
     expect(desktop.queryByRole("region", { name: /^Approved, ready to send/ })).toBeNull();
     expect(names(desktop.getByRole("region", { name: /^Sent, waiting to hear/ }))).toContain(
       "Sofia Petrova",

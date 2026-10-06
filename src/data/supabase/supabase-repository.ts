@@ -3,10 +3,18 @@ import { DomainError } from "@/domain/errors";
 import type { DomainErrorCode } from "@/domain/errors";
 import type { DraftId, InteractionId, UserId } from "@/domain/ids";
 import { compareInstants } from "@/domain/time";
-import type { Repository, RepositoryErrorCode, Reverted, UndoStep } from "../repository";
+import type {
+  GmailConnection,
+  GmailRecorded,
+  Repository,
+  RepositoryErrorCode,
+  Reverted,
+  UndoStep,
+} from "../repository";
 import { RepositoryError } from "../repository";
 import type { Database, Tables } from "./database.types";
 import type { InterpretationRow, OpportunityRow } from "./rows";
+import { instantOf } from "./rows";
 import {
   companyFromRow,
   companyToRow,
@@ -241,7 +249,6 @@ export function createSupabaseRepository(
           draft: Tables<"drafts">;
           interaction: Tables<"interactions">;
           person: Tables<"people">;
-          undo: string;
         }>(
           client.rpc("mark_draft_sent", {
             p_id: draft.id,
@@ -257,7 +264,6 @@ export function createSupabaseRepository(
           draft: draftFromRow(result.draft, userId),
           interaction: interactionFromRow(result.interaction, userId),
           person: personFromRow(result.person, userId),
-          undo: result.undo as UndoStep,
         };
       },
     },
@@ -360,6 +366,130 @@ export function createSupabaseRepository(
       }
       return reverted;
     },
+    gmail: {
+      async connection() {
+        const found = await row(
+          client
+            .from("gmail_connections")
+            .select("*")
+            .eq("workspace_id", workspaceId)
+            .maybeSingle(),
+        );
+        return found ? gmailConnectionFromRow(found) : null;
+      },
+      async connect(input) {
+        const saved = await call<Tables<"gmail_connections">>(
+          client.rpc("connect_gmail", {
+            p_email: input.emailAddress,
+            p_scopes: input.scopes,
+            p_sealed_refresh_token: input.credential.sealed,
+            p_key_id: input.credential.keyId,
+            p_history_cursor: input.historyCursor ?? (null as unknown as string),
+            p_at: input.at,
+          }),
+        );
+        return gmailConnectionFromRow(saved);
+      },
+      async disconnect() {
+        const result = await call<{ sealed_refresh_token: string; key_id: string } | null>(
+          client.rpc("disconnect_gmail"),
+        );
+        return result ? { sealed: result.sealed_refresh_token, keyId: result.key_id } : null;
+      },
+      async beginSync(minIntervalSeconds) {
+        const lease = await call<{
+          connection: Tables<"gmail_connections">;
+          sealed_refresh_token: string;
+          key_id: string;
+        } | null>(client.rpc("begin_gmail_sync", { p_min_interval_seconds: minIntervalSeconds }));
+        if (!lease) return null;
+        return {
+          connectionId: lease.connection.id,
+          emailAddress: lease.connection.email_address,
+          credential: { sealed: lease.sealed_refresh_token, keyId: lease.key_id },
+          historyCursor: lease.connection.history_cursor ?? undefined,
+        };
+      },
+      async finishSync(connectionId, outcome, historyCursor) {
+        await call(
+          client.rpc("finish_gmail_sync", {
+            p_connection: connectionId,
+            p_outcome: outcome,
+            p_history_cursor: historyCursor ?? (null as unknown as string),
+          }),
+        );
+      },
+      async recorded(providerMessageIds) {
+        const found = new Set<string>();
+        const ids = providerMessageIds.filter((id) => /^[A-Za-z0-9_-]{1,128}$/.test(id));
+        for (let i = 0; i < ids.length; i += 100) {
+          const rows = await call<{ provider_message_id: string }[]>(
+            client
+              .from("gmail_messages")
+              .select("provider_message_id")
+              .eq("workspace_id", workspaceId)
+              .in("provider_message_id", ids.slice(i, i + 100)),
+          );
+          for (const r of rows) found.add(r.provider_message_id);
+        }
+        return found;
+      },
+      async linkedInteractions() {
+        const rows = await call<{ interaction_id: string }[]>(
+          client.from("gmail_messages").select("interaction_id").eq("workspace_id", workspaceId),
+        );
+        return new Set(rows.map((r) => r.interaction_id));
+      },
+      async record(entry): Promise<GmailRecorded> {
+        const message = "interaction" in entry ? entry.interaction : undefined;
+        const result = await call<{
+          outcome: "recorded" | "linked" | "duplicate";
+          interaction?: Tables<"interactions">;
+          draft?: Tables<"drafts"> | null;
+          person?: Tables<"people">;
+        }>(
+          client.rpc("record_gmail_message", {
+            p_message: {
+              provider_message_id: entry.providerMessageId,
+              thread_id: entry.threadId ?? null,
+              person_id: entry.personId,
+              direction: message?.kind === "message_received" ? "received" : "sent",
+              kind: entry.kind,
+              at: entry.at,
+              interaction_id: message?.id ?? null,
+              occurred_at: message?.occurredAt ?? null,
+              summary: message?.summary ?? null,
+              subject: message && "subject" in message ? (message.subject ?? null) : null,
+              link_interaction_id: entry.kind === "link" ? entry.interactionId : null,
+              draft_id: entry.kind === "draft" ? entry.draft.id : null,
+              draft_expected: entry.kind === "draft" ? entry.expected : null,
+              status_before: entry.kind === "link" ? null : entry.relationshipStatus.before,
+              status_after: entry.kind === "link" ? null : entry.relationshipStatus.after,
+            },
+          }),
+        );
+        if (result.outcome === "duplicate" || !result.interaction || !result.person) {
+          return { outcome: "duplicate" };
+        }
+        return {
+          outcome: result.outcome,
+          interaction: interactionFromRow(result.interaction, userId),
+          draft: result.draft ? draftFromRow(result.draft, userId) : undefined,
+          person: personFromRow(result.person, userId),
+        };
+      },
+    },
+  };
+}
+
+/** The connection as the screens may see it: never its credentials. */
+function gmailConnectionFromRow(row: Tables<"gmail_connections">): GmailConnection {
+  return {
+    emailAddress: row.email_address,
+    status: row.status === "needs_reconnect" ? "needs_reconnect" : "connected",
+    connectedAt: instantOf(row.connected_at),
+    lastSyncedAt: row.last_synced_at ? instantOf(row.last_synced_at) : undefined,
+    lastError: (row.last_error ?? undefined) as GmailConnection["lastError"],
   };
 }
 

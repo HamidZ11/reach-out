@@ -7,20 +7,26 @@ import type { SignInState } from "@/features/sign-in/state";
 import { authMode } from "@/server/config";
 import { NEXT_COOKIE, NEXT_COOKIE_OPTIONS } from "@/server/next-cookie";
 import { safeNextPath } from "@/server/next-path";
+import { allowed, clientAddress } from "@/server/rate-limit";
 import { getSupabase } from "@/server/supabase";
 
 /**
  * Sign-in by email link (D-026): no passwords, no third-party accounts. The
  * same request signs a new address up, so the answer never says whether an
- * account exists. Where to return afterwards waits in a short-lived httpOnly
- * cookie, checked again when the link is opened.
+ * account exists: known, new, or refused because sign-ups are closed, it is
+ * the same "check your email". Where to return afterwards waits in a
+ * short-lived httpOnly cookie, checked again when the link is opened.
+ *
+ * Requests are limited per address and per client (D-032) before Supabase is
+ * asked, because Supabase's own limits see only Reachout's server.
  */
+const SLOW_DOWN = "That's a lot of sign-in emails. Wait a few minutes, then try again.";
 export async function requestSignInLink(
   _previous: SignInState,
   form: FormData,
 ): Promise<SignInState> {
   const typed = String(form.get("email") ?? "").trim();
-  const email = z.email().max(320).safeParse(typed);
+  const email = z.email().max(320).safeParse(typed.toLowerCase());
   if (!email.success) {
     return {
       status: "problem",
@@ -37,6 +43,13 @@ export async function requestSignInLink(
     };
   }
 
+  const address = clientAddress(await headers());
+  const [byAddress, byEmail] = await Promise.all([
+    allowed("sign_in_address", address, { whenUnavailable: "allow" }),
+    allowed("sign_in_email", email.data, { whenUnavailable: "allow" }),
+  ]);
+  if (!byAddress || !byEmail) return { status: "problem", email: typed, message: SLOW_DOWN };
+
   const store = await cookies();
   store.set(NEXT_COOKIE, safeNextPath(form.get("next")), NEXT_COOKIE_OPTIONS);
 
@@ -46,12 +59,10 @@ export async function requestSignInLink(
     options: { emailRedirectTo: `${await origin()}/auth/confirm`, shouldCreateUser: true },
   });
   if (error) {
-    if (error.status === 429) {
-      return {
-        status: "problem",
-        email: typed,
-        message: "That's a lot of sign-in emails. Wait a minute, then try again.",
-      };
+    if (error.status === 429) return { status: "problem", email: typed, message: SLOW_DOWN };
+    // Sign-ups closed: an unknown address gets the same answer as a known one.
+    if (error.code === "signup_disabled" || error.code === "otp_disabled") {
+      return { status: "sent", email: email.data };
     }
     console.error("Sending a sign-in link failed", error.code ?? error.name);
     return {

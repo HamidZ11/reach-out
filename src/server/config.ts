@@ -1,4 +1,6 @@
 import "server-only";
+import type { SecretKey } from "./secret-box";
+import { secretKey } from "./secret-box";
 
 /**
  * Where identity and records come from, decided once from the environment.
@@ -58,4 +60,63 @@ export function authModeOrNull(env: Env = process.env): AuthMode | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Gmail (D-031) is optional: without all of its settings, Settings says it
+ * isn't available and nothing tries to reach Google.
+ *
+ * - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET: the OAuth web client.
+ * - GOOGLE_GMAIL_REDIRECT_URI: exactly the callback registered with Google,
+ *   https://<site>/settings/gmail/callback (http only on this machine).
+ * - GMAIL_TOKEN_ENCRYPTION_KEY: 32 random bytes, base64, sealing refresh tokens.
+ *   GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS keeps the last key readable during a rotation.
+ */
+export type GmailConfig = {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  /** The current key first; the previous one (if any) only opens. */
+  keys: SecretKey[];
+};
+
+export function gmailConfig(env: Env = process.env): GmailConfig | null {
+  const clientId = env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+  const redirectUri = env.GOOGLE_GMAIL_REDIRECT_URI?.trim();
+  const key = env.GMAIL_TOKEN_ENCRYPTION_KEY?.trim();
+  if (!clientId && !clientSecret && !redirectUri && !key) return null;
+  if (!clientId || !clientSecret || !redirectUri || !key) {
+    console.error("Gmail is partly configured, so it stays off. See .env.example.");
+    return null;
+  }
+  try {
+    const url = new URL(redirectUri);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) return null;
+    if (url.pathname !== "/settings/gmail/callback" || url.search || url.hash) return null;
+    const keys = [secretKey(key)];
+    const previous = env.GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS?.trim();
+    if (previous) keys.push(secretKey(previous));
+    return { clientId, clientSecret, redirectUri: url.toString(), keys };
+  } catch {
+    console.error("Gmail's redirect URI or encryption key is invalid, so Gmail stays off.");
+    return null;
+  }
+}
+
+/**
+ * The secret behind rate-limit keys (D-032): required in production, so an
+ * attacker who knows someone's address can't compute their key and spend
+ * their sign-in allowance.
+ */
+export function rateLimitSecret(env: Env = process.env): string {
+  const secret = env.REACHOUT_RATE_LIMIT_SECRET?.trim();
+  if (secret && secret.length >= 32) return secret;
+  if (env.NODE_ENV === "production") {
+    throw new AuthNotConfiguredError(
+      "REACHOUT_RATE_LIMIT_SECRET (32+ characters) is required in production.",
+    );
+  }
+  return "development-only-rate-limit-secret-not-for-production";
 }

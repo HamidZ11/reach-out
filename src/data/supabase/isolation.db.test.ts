@@ -83,19 +83,21 @@ beforeAll(async () => {
     { id: first!.id, expected: approved.changes.drafts![0]!.updatedAt },
     now(),
   );
-  if (!sent.ok || !sent.undo) throw new Error("B's mark sent failed");
-  bUndo = sent.undo;
+  // Marking sent is final (D-030): it leaves no undo step.
+  if (!sent.ok || sent.undo) throw new Error("B's mark sent failed");
   await createDraftStep(
     b.repository,
     { personId: people[0]!.id, channel: "linkedin", body: "A second note" },
     now(),
   );
   const [action] = await b.repository.nextActions.list();
-  await completeNextActionStep(
+  const completed = await completeNextActionStep(
     b.repository,
     { id: action!.id, expected: action!.updatedAt },
     now(),
   );
+  if (!completed.ok || !completed.undo) throw new Error("B's complete failed");
+  bUndo = completed.undo;
 
   // Facts and interpretations have no write path in Reachout yet (D-022), so
   // the test writes B's with the service key, which only the test holds.

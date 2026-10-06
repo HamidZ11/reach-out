@@ -1,9 +1,13 @@
+import type { GmailActions } from "@/features/settings/gmail";
 import type { SettingsActions } from "@/features/settings/operations";
 import type { WorkspaceActions } from "@/features/workspace/outcome";
 import {
   approveDraft,
+  checkGmail,
   completeNextAction,
+  connectGmail,
   createDraft,
+  disconnectGmailAccount,
   markDraftSent,
   reviseDraft,
   saveGoals,
@@ -24,3 +28,9 @@ export const workspaceActions: WorkspaceActions = {
 };
 
 export const settingsActions: SettingsActions = { saveProfile, saveGoals };
+
+export const gmailActions: GmailActions = {
+  connect: connectGmail,
+  check: checkGmail,
+  disconnect: disconnectGmailAccount,
+};

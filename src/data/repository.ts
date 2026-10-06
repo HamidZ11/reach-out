@@ -16,7 +16,7 @@ import type {
   PersonId,
   UserId,
 } from "@/domain/ids";
-import type { Interaction, MessageSent } from "@/domain/interaction";
+import type { Interaction, MessageReceived, MessageSent } from "@/domain/interaction";
 import type {
   DoneNextAction,
   NextAction,
@@ -85,8 +85,11 @@ export interface Repository {
     approve(draft: ApprovedDraft, expected: Instant): Promise<Changed<{ draft: Draft }>>;
     /** An edit, which always returns the draft for approval. */
     revise(draft: AwaitingApprovalDraft, expected: Instant): Promise<Changed<{ draft: Draft }>>;
-    /** The user sent an approved draft themselves: the sent draft, its message, and the person after it. */
-    markSent(sent: MarkedSent, expected: Instant): Promise<Changed<MarkedSentResult>>;
+    /**
+     * The user sent an approved draft themselves: the sent draft, its message,
+     * and the person after it. Final: a recorded message has no Undo (D-030).
+     */
+    markSent(sent: MarkedSent, expected: Instant): Promise<MarkedSentResult>;
   };
   nextActions: {
     list(filter?: {
@@ -116,7 +119,92 @@ export interface Repository {
    * records since. Each write's `undo` names its step.
    */
   undo(step: UndoStep): Promise<Reverted>;
+  /**
+   * The workspace's Gmail connection (D-031): read-only correspondence
+   * tracking. Credentials only ever leave as sealed ciphertext, to the server
+   * code that syncs.
+   */
+  gmail: {
+    /** How the connection stands, without credentials; null when not connected. */
+    connection(): Promise<GmailConnection | null>;
+    connect(input: GmailConnectInput): Promise<GmailConnection>;
+    /** Forgets the connection and its credentials; returns the sealed token once, to revoke it. */
+    disconnect(): Promise<SealedSecret | null>;
+    /** Starts a sync if one is due and none is running; null otherwise. */
+    beginSync(minIntervalSeconds: number): Promise<GmailSyncLease | null>;
+    finishSync(
+      connectionId: string,
+      outcome: GmailSyncOutcome,
+      historyCursor?: string,
+    ): Promise<void>;
+    /** Which of these provider messages are already in the history. */
+    recorded(providerMessageIds: readonly string[]): Promise<Set<string>>;
+    /** Interactions already linked to a provider message. */
+    linkedInteractions(): Promise<Set<string>>;
+    /** One provider message, for one person, into the history: exactly once. */
+    record(entry: GmailRecord): Promise<GmailRecorded>;
+  };
 }
+
+/** A secret sealed by the server (AES-256-GCM); meaningless without the server's key. */
+export type SealedSecret = { sealed: string; keyId: string };
+
+export type GmailConnection = {
+  emailAddress: string;
+  status: "connected" | "needs_reconnect";
+  connectedAt: Instant;
+  lastSyncedAt?: Instant;
+  lastError?: "revoked" | "permission" | "unavailable" | "history_reset";
+};
+
+export type GmailConnectInput = {
+  emailAddress: string;
+  scopes: string[];
+  credential: SealedSecret;
+  /** Where syncing starts: the mailbox's history id when it was connected. */
+  historyCursor?: string;
+  at: Instant;
+};
+
+export type GmailSyncLease = {
+  connectionId: string;
+  emailAddress: string;
+  credential: SealedSecret;
+  historyCursor?: string;
+};
+
+export type GmailSyncOutcome =
+  "synced" | "history_reset" | "unavailable" | "revoked" | "permission";
+
+type GmailRecordBase = {
+  providerMessageId: string;
+  threadId?: string;
+  personId: PersonId;
+  at: Instant;
+};
+
+export type GmailRecord = GmailRecordBase &
+  (
+    | {
+        kind: "new";
+        interaction: MessageSent | MessageReceived;
+        relationshipStatus: { before: RelationshipStatus; after: RelationshipStatus };
+      }
+    /** The same message the user already marked sent by hand. */
+    | { kind: "link"; interactionId: InteractionId }
+    /** How the user sent an approved draft. */
+    | {
+        kind: "draft";
+        interaction: MessageSent;
+        draft: SentDraft;
+        expected: Instant;
+        relationshipStatus: { before: RelationshipStatus; after: RelationshipStatus };
+      }
+  );
+
+export type GmailRecorded =
+  | { outcome: "duplicate" }
+  | { outcome: "recorded" | "linked"; interaction: Interaction; draft?: Draft; person: Person };
 
 /** Names one write's undo history. Opaque. */
 export type UndoStep = string & { readonly __brand: "UndoStep" };

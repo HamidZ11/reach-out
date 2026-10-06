@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(13);
+select plan(15);
 
 select is(
   (select array_agg(c.relname::text order by c.relname)
@@ -47,11 +47,11 @@ select is(
 );
 
 select is(
-  (select count(*)::int from pg_proc p
+  (select array_agg(p.proname::text order by p.proname) from pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and has_function_privilege('anon', p.oid, 'execute')),
-  0,
-  'signed out, no function can be called'
+  array['take_rate_limit'],
+  'signed out, the only callable function is the sign-in rate limit'
 );
 
 select is(
@@ -66,6 +66,20 @@ select ok(
   (select not rolbypassrls and not rolcanlogin and not rolsuper
    from pg_roles where rolname = 'reachout_writer'),
   'reachout_writer cannot sign in, and cannot bypass row-level security'
+);
+
+select is(
+  (select array_agg(c.relname::text order by c.relname)
+   from pg_class c
+   where c.relnamespace = 'private'::regnamespace and c.relkind = 'r' and not c.relrowsecurity),
+  null,
+  'private tables (credentials, undo history, rate limits) have row-level security too'
+);
+
+select ok(
+  not has_table_privilege('authenticated', 'private.gmail_credentials', 'select')
+    and not has_table_privilege('anon', 'private.gmail_credentials', 'select'),
+  'Gmail credentials are never readable through the Data API'
 );
 
 select ok(

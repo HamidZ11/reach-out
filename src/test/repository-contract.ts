@@ -344,18 +344,24 @@ export function repositoryContract(name: string, fresh: () => Promise<Repository
           now(),
         ),
       ).changes.drafts![0]!;
-      const approved = changed(
+      const approval = changed(
         await approveDraftStep(repository, { id: draft.id, expected: draft.updatedAt }, now()),
-      ).changes.drafts![0]!;
+      );
+      const approved = approval.changes.drafts![0]!;
       const sent = changed(
         await markDraftSentStep(repository, { id: draft.id, expected: approved.updatedAt }, now()),
       );
-      const undone = changed(await undoStep(repository, { step: sent.undo! }));
-      expect(undone.changes.removed?.interactions).toEqual([sent.changes.interactions![0]!.id]);
+      // Marking as sent is final (D-030): no undo step, and the step before it
+      // can no longer bring the draft back either.
+      expect(sent.undo).toBeUndefined();
+      expect(await undoStep(repository, { step: approval.undo! })).toEqual({
+        ok: false,
+        problem: "conflict",
+      });
       const after = await loadWorkspace(repository, now());
-      expect(after.drafts[0]).toMatchObject({ status: "approved", updatedAt: approved.updatedAt });
-      expect(after.interactions).toEqual([]);
-      expect(after.people[0]?.relationshipStatus).toBe("new");
+      expect(after.drafts.find((d) => d.id === draft.id)?.status).toBe("sent");
+      expect(after.interactions.map((i) => i.id)).toEqual([sent.changes.interactions![0]!.id]);
+      expect(after.people[0]?.relationshipStatus).toBe("contacted");
     });
 
     it("undo refuses once the record has changed since", async () => {

@@ -1,10 +1,12 @@
 "use server";
 
+import type { Route } from "next";
 import { refresh } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import type { z } from "zod";
 import type { Repository } from "@/data/repository";
 import { RepositoryError } from "@/data/repository";
+import type { GmailOutcome } from "@/features/settings/gmail";
 import type { SettingsOutcome } from "@/features/settings/operations";
 import {
   GoalsInput,
@@ -28,6 +30,12 @@ import {
   undoStep,
 } from "@/features/workspace/operations";
 import type { Outcome } from "@/features/workspace/outcome";
+import {
+  disconnectGmail,
+  gmailStatus,
+  startGmailConnection,
+  syncGmailForUser,
+} from "@/server/gmail";
 import { getRepository } from "@/server/repository";
 
 /**
@@ -133,4 +141,86 @@ export async function saveGoals(input: z.input<typeof GoalsInput>): Promise<Sett
     INVALID_SETTINGS,
     UNAVAILABLE_SETTINGS,
   );
+}
+
+/* ——— Gmail (D-031): read-only correspondence tracking ——— */
+
+/** Leaves for Google's consent screen; answers only if it can't. */
+export async function connectGmail(): Promise<{ ok: false; message: string } | void> {
+  const start = await startGmailConnection();
+  if ("url" in start) redirect(start.url as Route);
+  return {
+    ok: false,
+    message:
+      start.problem === "rate_limited"
+        ? "That's a lot of tries. Wait a little, then connect Gmail again."
+        : "Gmail isn't available right now.",
+  };
+}
+
+/** "Check now": a sync when the user asks, limited so it can't be hammered. */
+export async function checkGmail(): Promise<GmailOutcome> {
+  try {
+    const result = await syncGmailForUser({ now: true });
+    const { connection } = await gmailStatus();
+    if ("recorded" in result && result.recorded > 0) refresh();
+    switch (result.status) {
+      case "synced":
+      case "history_reset":
+        return {
+          ok: true,
+          connection,
+          message:
+            result.recorded === 0
+              ? "Checked Gmail. Nothing new with people you track."
+              : `Checked Gmail. ${result.recorded === 1 ? "One message" : `${result.recorded} messages`} added to your history.`,
+        };
+      case "needs_reconnect":
+        return { ok: true, connection, message: "Gmail needs reconnecting." };
+      case "rate_limited":
+        return { ok: false, message: "Checked very recently. Try again in a few minutes." };
+      case "skipped":
+        return { ok: true, connection, message: "Gmail is already being checked." };
+      case "unavailable":
+        return {
+          ok: false,
+          message: "Gmail couldn't be reached. Nothing changed; try again soon.",
+        };
+    }
+  } catch (error) {
+    unstable_rethrow(error);
+    return { ok: false, message: "Gmail couldn't be reached. Nothing changed; try again soon." };
+  }
+}
+
+/** Forgets the Gmail connection. History already recorded stays. */
+export async function disconnectGmailAccount(): Promise<GmailOutcome> {
+  try {
+    const { revoked } = await disconnectGmail();
+    refresh();
+    return {
+      ok: true,
+      connection: null,
+      message: revoked
+        ? "Gmail disconnected. What it added to your history stays."
+        : "Gmail disconnected here. Google couldn't be told, so remove Reachout in your Google account's security settings too.",
+    };
+  } catch (error) {
+    unstable_rethrow(error);
+    return { ok: false, message: "Gmail couldn't be disconnected just now. Try again." };
+  }
+}
+
+/**
+ * On entering the app: a sync if one is due (at most every ten minutes).
+ * Runs after the page has loaded, never blocks it, and never fails it.
+ */
+export async function syncGmailOnEntry(): Promise<void> {
+  try {
+    const result = await syncGmailForUser({ now: false });
+    if ("recorded" in result && result.recorded > 0) refresh();
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("Background Gmail sync failed");
+  }
 }

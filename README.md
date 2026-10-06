@@ -7,7 +7,9 @@ A personal outreach operating system for university students and recent graduate
 - The design is complete and frozen.
 - Every production surface is built: Today, People, Pursuing, Outreach, Companies, Settings and Onboarding.
 - Accounts and persistence are in place: email-link sign-in through Supabase Auth, durable Postgres storage, and row-level security per workspace.
-- Gmail and AI are not built. Nothing has been deployed.
+- Gmail is a read-only connector. It notices what you send to, and receive from, people you track; it never sends, changes or deletes mail. "Mark as sent" stays as the manual fallback, and is final.
+- Hardening is in place: rate limits in Postgres, a nonce-based Content Security Policy, and security headers.
+- AI is not built. Nothing has been deployed; [docs/launch-checklist.md](docs/launch-checklist.md) lists what launch still needs.
 
 The design reference is the prototype at `/prototypes/directions?v=3` (development only).
 
@@ -31,6 +33,14 @@ pnpm dev                           # http://localhost:3000
 
 A new address starts onboarding.
 
+**Gmail locally (optional):**
+
+1. Create an OAuth web client in Google Cloud with the Gmail API enabled and the `gmail.metadata` scope.
+2. Set its redirect URI to `http://localhost:<port>/settings/gmail/callback`, and add your Google account as a test user.
+3. Set the four Gmail variables in `.env.local`.
+
+Without them, Settings says Gmail isn't available, and everything else works.
+
 **Without Supabase:**
 
 - `REACHOUT_DEV_SEED=true pnpm dev` runs as the fictional seed student, in memory, with no sign-in. Changes last until the server restarts.
@@ -41,7 +51,7 @@ A new address starts onboarding.
 
 ```sh
 pnpm check     # format, lint, typecheck, unit and component tests, build
-pnpm test:db   # the Repository contract and two-account isolation, against the local Supabase
+pnpm test:db   # Repository and Gmail sync contracts, two-account isolation, rate limits, on the local Supabase
 pnpm db:test   # pgTAP: RLS, grants and function ownership, checked inside Postgres
 ```
 

@@ -29,6 +29,17 @@ Visual-system exploration is **complete**. Every surface is approved on desktop 
 - **Onboarding:** arriving in Today says "You're set up. This is your Today.". If saving fails, the last step says so and keeps your answers.
 - **Actions:** each one is announced once it is saved. A failure is announced in words, without Undo.
 
+**Added with Gmail and launch hardening, awaiting the human's visual review:**
+
+- **"Mark as sent" is final (D-030), so it takes two presses.** The first press announces "This can't be undone…" and turns the same button into "Yes, I sent it" for eight seconds; the second records it. There is no Undo afterwards.
+- **Settings › Connected accounts › Gmail**, in the existing definition row. It has four states:
+  - not set up on this deployment ("Not available yet");
+  - not connected, with Connect;
+  - connected: the address, when it was last checked, "Check now" as a quiet text button, and Disconnect in the row's action place;
+  - reconnect needed, with Reconnect (and Disconnect).
+- **After returning from Google**, Settings says how connecting went, once.
+- **Sign-in:** a sixth request for one address in fifteen minutes is refused with "That's a lot of sign-in emails…".
+
 ## Design freeze
 
 Approved surfaces are not redesigned during implementation. A change needs one of these:

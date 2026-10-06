@@ -25,13 +25,16 @@ src/
     sign-in/    Public: email-link sign-in
     auth/       The link's landing route (confirm) and the sign-in/sign-out actions
     error.tsx   A calm page when something can't load
-  proxy.ts      Session refresh and optimistic redirects (Next's Proxy). Never the only check.
+  proxy.ts      Per-request CSP nonce, session refresh and optimistic redirects (Next's Proxy). Never the only check.
   domain/       Pure TypeScript: Zod schemas, types, rules, derivations. No I/O, no React, no clock.
   data/         The Repository interface and its implementations.
     memory/     In-memory repository (tests, design references, the development seed session)
     seed/       Seed dataset
     supabase/   The durable repository: row mapping, generated database types
-  server/       Server-only composition: config, Supabase client, auth boundary, getRepository(). The only place that picks a data source.
+  integrations/ Provider adapters, server-only. They translate; the rules stay in the domain.
+    gmail/      OAuth (PKCE), the three Gmail reads, message mapping, and the sync
+  server/       Server-only composition: config, Supabase client, auth boundary, getRepository(), Gmail flows,
+                secret sealing, rate limits, CSP. The only place that picks a data source.
   features/     Per product area: loaders and workflow steps (take a Repository), and that area's UI.
     shell/      The app shell: desktop rail, phone tab bar.
     workspace/  The user's records for the screens: loader, record index, state, workflow steps (operations.ts), actions contract (outcome.ts).
@@ -40,7 +43,7 @@ src/
     pursuing/   Pursuing (route /opportunities): timing groups, stage path, activity, desktop and phone compositions.
     outreach/   Outreach: one track per person grouped by action state, acted on in place; desktop and phone compositions.
     companies/  Companies: derived aggregates (opportunities, people, history) per company; desktop and phone compositions.
-    settings/   Settings: profile and goals (saved), the account, and what isn't built yet, said plainly.
+    settings/   Settings: profile and goals (saved), Gmail, the account, and what isn't built yet, said plainly.
     onboarding/ Onboarding: seven questions, then the records they create, saved once, opening Today.
     sign-in/    Sign-in, in onboarding's frame.
   components/   Shared presentational pieces: Avatar, icons, date wording.
@@ -174,16 +177,55 @@ Supabase Auth, signing in by email link (D-026). See [`src/server/auth.ts`](src/
 - **Protected routes:** everything except `/sign-in`, `/auth/*` and the development-only `/prototypes`.
 - **Timeouts:** every Supabase call is abandoned after 10 seconds and reported as unavailable, so nothing hangs.
 
-## Email integration boundary (future)
+## Email integration: Gmail, read-only (D-031)
 
-Gmail first (roadmap phase 7). Nothing is implemented, and the domain stays provider-independent: `channel: "email"` covers every provider.
+Gmail is a correspondence connector, separate from sign-in. It never sends, changes or deletes mail. Manual "Mark as sent" stays as the fallback, and is final (D-030).
 
-- An adapter in `src/integrations/gmail/` (server-only) translates in both directions. The domain never imports it.
-- **Outbound:** only an `approved` Draft can be sent. On provider success, record a `message_sent` Interaction and mark the draft `sent` (`markDraftSent`). On failure, the draft stays approved.
-- **Inbound:** a provider message in a tracked thread becomes a `message_received` Interaction for the matching person. The user is never asked to sync their whole inbox.
-- Provider ids (message id, thread id) go in an adapter-owned mapping table keyed by interaction or draft id, which also makes sync idempotent. They are not added to domain records.
-- OAuth tokens are stored server-side and encrypted, scoped to the minimum Gmail permissions.
-- No SMTP, Resend, Microsoft or inbox-wide sync until a decision says otherwise.
+- **Layers:**
+  - `src/domain/correspondence.ts` holds the rules (matching, reconciliation);
+  - `src/integrations/gmail/` translates Gmail (OAuth, API reads, message mapping, the sync loop) and imports no UI, routes or database client (lint);
+  - `src/server/gmail.ts` assembles them for the signed-in user;
+  - Server Actions (`connectGmail`, `checkGmail`, `disconnectGmailAccount`, `syncGmailOnEntry`) and the callback route (`app/(app)/settings/gmail/callback`) are thin.
+  - React never calls Google, and provider shapes never reach the UI.
+- **OAuth:**
+  - the web-server flow with PKCE and `state`, for the `gmail.metadata` scope only;
+  - the handshake is sealed in an httpOnly cookie on the callback path, for ten minutes, bound to the signed-in user;
+  - the callback redirects only to `/settings?gmail=<outcome>`.
+- **Tokens:**
+  - the refresh token is sealed with AES-256-GCM (`src/server/secret-box.ts`, with the owner as associated data) and stored in `private.gmail_credentials`, which the Data API can't reach;
+  - access tokens are minted per sync and never stored.
+  - **Keys:** `GMAIL_TOKEN_ENCRYPTION_KEY` seals new tokens. During a rotation, `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` still opens older ones until they are re-sealed (on reconnect) or the users reconnect. Losing both keys means every user reconnects; nothing else is lost.
+- **Storage:**
+  - `gmail_connections` holds the account, status, history cursor, last sync and lease;
+  - `gmail_messages` maps a provider message id to the interaction it became, once per person, with a composite foreign key so a sent message can only map to a `message_sent` for that same person;
+  - only matched mail is stored, as ordinary interactions.
+- **Sync** (`syncGmail`):
+  - triggered on entering the app (the shell calls `syncGmailOnEntry` after load, at most every ten minutes) and by "Check now" (rate-limited);
+  - a database lease (`begin_gmail_sync`) allows one at a time per account;
+  - it reads `history.list` from the cursor and fetches headers only for new messages (four at a time), matches and reconciles them in the domain, and records each through `record_gmail_message` in its own transaction;
+  - a 20-second budget, 8-second request timeouts, and the cursor saved per change, so a stopped sync continues next time.
+- **Failure:**
+  - `invalid_grant`, a missing scope, or an unopenable credential → "needs reconnecting", and syncing stops;
+  - an outage → `last_error = unavailable`, nothing changed, retried later;
+  - an expired history cursor → continue from now (`history_reset`).
+- **Not built:** sending, push notifications (Pub/Sub), importing mail from before the connection, Outlook.
+
+## Security
+
+- **Sessions:** httpOnly, `SameSite=Lax`, `Secure` in production; no browser Supabase client; the JWT verified on the server for every read and write.
+- **Database:**
+  - RLS on every table, including `private`;
+  - the Data API can only read;
+  - writes only through functions owned by `reachout_writer` (no login, no RLS bypass), each with `search_path = ''`;
+  - the security-definer helpers that read membership are the only functions owned by `postgres`.
+- **Rate limits** (D-032): `take_rate_limit` in Postgres, keyed by HMACs with `REACHOUT_RATE_LIMIT_SECRET`. It covers sign-in links (per address and per client), Gmail connections and "Check now"; the limits live in the function.
+- **Headers** (D-033): a nonce-based CSP from the Proxy (no `unsafe-eval` in production), plus frame, MIME-sniffing, referrer, permissions, opener and HSTS headers from `next.config.ts`. `X-Powered-By` is off.
+- **Inputs:**
+  - every Server Action parses with Zod, with length caps;
+  - redirects only go to fixed internal paths, or to `safeNextPath`;
+  - errors shown to users are calm copy, never provider or database messages;
+  - logs carry error kinds, never tokens or provider bodies.
+- **Dependencies:** `pnpm audit --prod` before a release.
 
 ## AI boundary (future)
 
@@ -215,18 +257,23 @@ Three layers, kept distinct:
   - `server-only` is aliased to a no-op under Vitest.
 - **Repository contract and database (`pnpm test:db`, needs `pnpm db:start`):**
   - real accounts signed in by email link on the local Supabase;
-  - the same Repository contract as the in-memory one;
-  - two-account isolation through the Data API: reads, reads by id, every workflow function, direct writes to every table, and signed out;
-  - racing first sign-ins and onboarding submissions.
+  - the same Repository contract and Gmail sync contract (with Google faked) as in memory;
+  - two-account isolation through the Data API: reads, reads by id, every workflow and Gmail function, direct writes to every table, and signed out;
+  - racing first sign-ins and onboarding submissions;
+  - rate limits.
   - These fail, rather than skip, if the local stack isn't running.
-- **In Postgres (`pnpm db:test`):** pgTAP checks that every table has RLS and policies, the grants, function ownership by `reachout_writer`, and isolation in plain SQL.
+- **In Postgres (`pnpm db:test`):** pgTAP checks that every table (public and private) has RLS, the grants, that only the sign-in rate limit is callable signed out, function ownership by `reachout_writer`, credentials closed to the Data API, and isolation in plain SQL.
+- **Google is never called by a test.** Gmail OAuth and API behaviour is tested against fakes at the `fetch` boundary; real Google is a launch check (docs/launch-checklist.md).
 - **Browser (Playwright):** not installed yet. Runtime checks so far are headless-Chrome DOM measurements (no screenshots) recorded in DEVLOG.md.
 - Test behaviour that could plausibly break. Do not write tests that restate a type.
 
 ## Deployment assumptions
 
 - Likely Vercel, on the Node.js runtime, with a hosted Supabase project. Nothing is deployed yet: [docs/launch-checklist.md](docs/launch-checklist.md) lists what the live project needs first.
-- Configuration is `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, read only in `src/server/`. The application needs no service key. `.env*` files are gitignored; `.env.example` lists the names.
+- **Configuration** (all server-only, read in `src/server/`; `.env.example` lists the names):
+  - required: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and in production `REACHOUT_RATE_LIMIT_SECRET`;
+  - Gmail, when wanted: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_GMAIL_REDIRECT_URI`, `GMAIL_TOKEN_ENCRYPTION_KEY` (and `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` during a rotation).
+  - The application needs no service key. `.env*` files are gitignored.
 - No custom servers, no edge runtime requirement, no background workers until Gmail sync needs them (decide then).
 
 ## Open technical decisions

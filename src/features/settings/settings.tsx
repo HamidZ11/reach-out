@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { createContext, useContext, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import * as Icon from "@/components/icons";
 import type { Goals, Objective, User } from "@/domain/user";
 import { GoalsSchema, OBJECTIVES, UserSchema } from "@/domain/user";
@@ -14,6 +14,7 @@ import t from "@/features/today/today.module.css";
 import { OBJECTIVE_OPTIONS } from "@/features/workspace/goals";
 import { problemMessage } from "@/features/workspace/outcome";
 import type { Workspace } from "@/features/workspace/records";
+import type { GmailActions, GmailOutcome, GmailSettings } from "./gmail";
 import type { SettingsActions, SettingsOutcome } from "./operations";
 import k from "./settings.module.css";
 
@@ -478,7 +479,112 @@ function GoalsSection({
 
 /* ——— Not built yet, said plainly ——— */
 
-function Boundaries() {
+/** "Last checked 14:32, Tue 6 Oct", in the user's time zone. */
+function checkedAt(at: string, timeZone: string): string {
+  const when = new Date(at);
+  const time = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit" });
+  const day = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  return `Last checked ${time.format(when)}, ${day.format(when)}`;
+}
+
+/**
+ * Gmail, said plainly (D-031): what it does (reads message details to notice
+ * what you sent and who replied; never sends, changes or deletes), whether it
+ * is connected, and when it last looked.
+ */
+function GmailRow({ gmail, timeZone }: { gmail: GmailControl; timeZone: string }) {
+  const { settings, actions, busy, run } = gmail;
+  const connection = settings.connection;
+  const reads =
+    "Reachout notices what you send to, and receive from, people you track. It only reads message details: it never sends, changes or deletes mail.";
+
+  if (!settings.available) {
+    return (
+      <div className={k.def}>
+        <dt className={k.defTerm}>Gmail</dt>
+        <dd className={k.defValue}>
+          <Later />
+          <span className={k.plain}>{reads} It isn&apos;t set up on this site yet.</span>
+        </dd>
+      </div>
+    );
+  }
+
+  if (!connection) {
+    return (
+      <div className={k.def}>
+        <dt className={k.defTerm}>Gmail</dt>
+        <dd className={k.defValue}>
+          <span className={k.plain}>Not connected. {reads}</span>
+        </dd>
+        <button
+          type="button"
+          className={`${t.text} ${t.small}`}
+          disabled={busy}
+          onClick={() => run(() => actions.connect())}
+        >
+          Connect
+        </button>
+      </div>
+    );
+  }
+
+  const stalled = connection.status === "needs_reconnect";
+  return (
+    <div className={k.def}>
+      <dt className={k.defTerm}>Gmail</dt>
+      <dd className={k.defValue}>
+        <span>{connection.emailAddress}</span>
+        {stalled ? (
+          <span className={k.plain}>
+            Reconnect needed: Google stopped letting Reachout read this account, so nothing new is
+            noticed until you reconnect.
+          </span>
+        ) : (
+          <span className={k.plain}>
+            {connection.lastSyncedAt
+              ? checkedAt(connection.lastSyncedAt, timeZone)
+              : "Connected. Not checked yet."}
+            {connection.lastError === "unavailable" && " Gmail couldn't be reached last time."}
+          </span>
+        )}
+        <span>
+          <button
+            type="button"
+            className={`${t.text} ${t.small}`}
+            disabled={busy}
+            onClick={() => run(() => (stalled ? actions.disconnect() : actions.check()))}
+          >
+            {stalled ? "Disconnect" : "Check now"}
+          </button>
+        </span>
+      </dd>
+      <button
+        type="button"
+        className={`${t.text} ${t.small}`}
+        disabled={busy}
+        onClick={() => run(() => (stalled ? actions.connect() : actions.disconnect()))}
+      >
+        {stalled ? "Reconnect" : "Disconnect"}
+      </button>
+    </div>
+  );
+}
+
+/** Gmail's state and actions, shared by both layouts. */
+type GmailControl = {
+  settings: GmailSettings;
+  actions: GmailActions;
+  busy: boolean;
+  run: (action: () => Promise<GmailOutcome | { ok: false; message: string } | void>) => void;
+};
+
+function Boundaries({ gmail, timeZone }: { gmail: GmailControl; timeZone: string }) {
   return (
     <>
       <Section
@@ -498,16 +604,7 @@ function Boundaries() {
         description="Where your messages go."
       >
         <dl className={k.defs}>
-          <div className={k.def}>
-            <dt className={k.defTerm}>Gmail</dt>
-            <dd className={k.defValue}>
-              <Later>Later</Later>
-              <span className={k.plain}>
-                Send approved drafts and notice replies without leaving Reachout. It will only ever
-                send what you have approved.
-              </span>
-            </dd>
-          </div>
+          <GmailRow gmail={gmail} timeZone={timeZone} />
           <div className={k.def}>
             <dt className={k.defTerm}>LinkedIn</dt>
             <dd className={k.defValue}>
@@ -584,11 +681,13 @@ function SettingsBody({
   user,
   account,
   actions,
+  gmail,
   save,
 }: {
   user: User;
   account: Account;
   actions: SettingsActions;
+  gmail: GmailControl;
   /** Saves, then says how it went. Resolves true once saved. */
   save: (change: () => Promise<SettingsOutcome>) => Promise<boolean>;
 }) {
@@ -611,7 +710,7 @@ function SettingsBody({
         user={user}
         onSave={(goals) => save(() => actions.saveGoals({ goals, expected: user.updatedAt }))}
       />
-      <Boundaries />
+      <Boundaries gmail={gmail} timeZone={user.timeZone} />
       <AccountSection account={account} />
     </>
   );
@@ -626,13 +725,44 @@ export function Settings({
   workspace,
   actions,
   account,
+  gmail: gmailSettings,
+  gmailActions,
+  notice,
 }: {
   workspace: Workspace;
   /** Server Actions in production. */
   actions: SettingsActions;
   account: Account;
+  gmail: GmailSettings;
+  gmailActions: GmailActions;
+  /** Said once on arrival, such as how connecting Gmail went. */
+  notice?: string;
 }) {
-  const { announce, view: toast } = useAnnouncer(undefined);
+  const { announce, view: toast } = useAnnouncer(undefined, notice);
+  const [connection, setConnection] = useState(gmailSettings.connection);
+  const [gmailBusy, setGmailBusy] = useState(false);
+  // A notice belongs to this arrival only: a reload shouldn't say it again.
+  useEffect(() => {
+    if (notice && window.location.search)
+      window.history.replaceState(null, "", SECTIONS.settings.href);
+  }, [notice]);
+  const gmail: GmailControl = {
+    settings: { available: gmailSettings.available, connection },
+    actions: gmailActions,
+    busy: gmailBusy,
+    run(action) {
+      if (gmailBusy) return;
+      setGmailBusy(true);
+      void action()
+        .then((result) => {
+          if (!result) return;
+          if ("connection" in result) setConnection(result.connection);
+          announce(result.message, { undoable: false });
+        })
+        .catch(() => announce("That didn't work. Try again in a moment.", { undoable: false }))
+        .finally(() => setGmailBusy(false));
+    },
+  };
   const [user, setUser] = useState(workspace.user);
   // A save in one layout resets the other's form to what was saved.
   const [version, setVersion] = useState(0);
@@ -668,6 +798,7 @@ export function Settings({
               user={user}
               account={account}
               actions={actions}
+              gmail={gmail}
               save={save}
             />
             {toast}
@@ -695,6 +826,7 @@ export function Settings({
                 user={user}
                 account={account}
                 actions={actions}
+                gmail={gmail}
                 save={save}
               />
             </div>

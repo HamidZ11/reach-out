@@ -14,7 +14,7 @@ Reachout helps students and recent graduates create real opportunities through t
 | [ROADMAP.md](ROADMAP.md)           | To know which phase you are in and what is out of scope        |
 | [DEVLOG.md](DEVLOG.md)             | To see what happened recently; append an entry when you finish |
 
-Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Every production UI surface is built. The app shell, Today, People, Pursuing (`/opportunities`), Outreach, Companies and Settings are approved; Onboarding is implemented from the approved prototype. Accounts and persistence are built (phase 6, verified locally, not deployed): email-link sign-in through Supabase Auth (D-026), workspace-scoped Postgres with RLS (D-025), writes only through database functions (D-027), and durable Undo (D-028). The sign-in page, the error page and the Settings additions await visual review. Nothing is ever sent from Reachout. Next: Gmail on `feat/gmail-launch`. AI comes later; outreach intelligence is future phase 9 (D-022).**
+Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Every production UI surface is built. The app shell, Today, People, Pursuing (`/opportunities`), Outreach, Companies and Settings are approved; Onboarding is implemented from the approved prototype. Accounts and persistence are built (phase 6, verified locally, not deployed): email-link sign-in through Supabase Auth (D-026), workspace-scoped Postgres with RLS (D-025), writes only through database functions (D-027), and durable Undo (D-028). Gmail is a read-only correspondence connector (D-031). Marking a message sent is final (D-030). Hardening is in place: rate limits in Postgres (D-032), a nonce CSP and headers (D-033). Everything is verified locally, with Google faked. Not deployed, and not verified with a real Google client. The sign-in page, the error page, the Settings additions (including Gmail) and the two-step "Mark as sent" await visual review. Nothing is ever sent from Reachout. Launch steps are in `docs/launch-checklist.md`. AI comes later; outreach intelligence is future phase 9 (D-022).**
 
 ## Workflow
 
@@ -65,6 +65,13 @@ Current status: **design checkpoint complete. Every surface is APPROVED and FROZ
   - The app never uses a service key.
   - Writes go only through the database workflow functions (D-027). A new kind of write needs a migration (function, grants), domain rules in TypeScript, and database tests.
   - Never weaken RLS, grants or the `reachout_writer` role to make something work.
+- **Gmail is read-only and server-only (D-031).**
+  - Only `src/integrations/gmail/` talks to Google, and only `src/server/` assembles it.
+  - Never add a send or modify scope, never store message bodies or unmatched mail, and never log or return tokens.
+  - Refresh tokens are sealed (`src/server/secret-box.ts`) before they reach the database.
+  - Matching and reconciliation rules live in `src/domain/correspondence.ts`.
+- **Marking a message sent is final (D-030):** never give it an Undo.
+- **Security headers and the CSP (D-033):** loading anything from another origin needs a decision.
 - **Schema changes are migrations** (`pnpm exec supabase migration new`), never dashboard edits, and never edits to a deployed migration. Regenerate types with `pnpm db:types`.
 - Validate external input (forms, params, provider payloads) with Zod before it reaches the domain.
 - Use the bundled Next.js docs: this Next.js version differs from older training data (see `@AGENTS.md` below).

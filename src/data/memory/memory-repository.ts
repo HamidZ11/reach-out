@@ -8,9 +8,16 @@ import type { RecordSet } from "@/domain/records";
 import { findIntegrityViolations } from "@/domain/records";
 import { sameSubject } from "@/domain/research";
 import type { Instant } from "@/domain/time";
-import { compareInstants } from "@/domain/time";
+import { compareInstants, instant } from "@/domain/time";
 import { UserSchema } from "@/domain/user";
-import type { Repository, Reverted, UndoStep } from "../repository";
+import type {
+  GmailConnection,
+  GmailRecorded,
+  Repository,
+  Reverted,
+  SealedSecret,
+  UndoStep,
+} from "../repository";
 import { RepositoryError } from "../repository";
 
 /**
@@ -31,6 +38,24 @@ export function createMemoryRepository(records: RecordSet, userId: UserId): Repo
 
   const store: RecordSet = structuredClone(records);
   const steps = new Map<string, Step>();
+  // Gmail, as the database holds it: the connection, its sealed credential,
+  // and which provider message became which interaction, per person.
+  let gmail:
+    | (GmailConnection & {
+        id: string;
+        credential: SealedSecret;
+        historyCursor?: string;
+        syncStartedAt?: number;
+      })
+    | null = null;
+  const gmailMessages = new Map<string, { interactionId: string }>();
+  const gmailKey = (providerMessageId: string, personId: string) =>
+    `${providerMessageId}:${personId}`;
+  const gmailStatus = (): GmailConnection | null => {
+    if (!gmail) return null;
+    const { id: _id, credential: _c, historyCursor: _h, syncStartedAt: _s, ...status } = gmail;
+    return structuredClone(status);
+  };
 
   const own = <T extends { userId: UserId }>(items: readonly T[]) =>
     items.filter((item) => item.userId === userId);
@@ -215,7 +240,6 @@ export function createMemoryRepository(records: RecordSet, userId: UserId): Repo
         if (person.relationshipStatus !== relationshipStatus.before) {
           throw new RepositoryError("conflict");
         }
-        const updated: Step["updated"] = [{ kind: "drafts", before, after: draft.updatedAt }];
         store.interactions.push(structuredClone(interaction));
         replace("drafts", draft);
         let after: Person = person;
@@ -225,14 +249,10 @@ export function createMemoryRepository(records: RecordSet, userId: UserId): Repo
             relationshipStatus: relationshipStatus.after,
             updatedAt: draft.updatedAt,
           };
-          updated.push({ kind: "people", before: person, after: after.updatedAt });
           replace("people", after);
         }
-        const undo = remember({
-          updated,
-          created: [{ kind: "interactions", id: interaction.id, after: interaction.updatedAt }],
-        });
-        return { ...(await result({ draft, interaction, person: after })), undo };
+        // Final (D-030): no undo step for a message the user sent.
+        return result({ draft, interaction, person: after });
       },
     },
     nextActions: {
@@ -301,6 +321,10 @@ export function createMemoryRepository(records: RecordSet, userId: UserId): Repo
         if (!now || compareInstants(now.updatedAt, entry.after) !== 0) {
           throw new RepositoryError("conflict");
         }
+        // What was sent is a fact: Undo never brings a sent draft back.
+        if (entry.kind === "drafts" && (now as Draft).status === "sent") {
+          throw new RepositoryError("conflict");
+        }
       }
       for (const entry of step.created) {
         const now = (store[entry.kind] as Owned[]).find((r) => r.id === entry.id);
@@ -330,17 +354,124 @@ export function createMemoryRepository(records: RecordSet, userId: UserId): Repo
             break;
         }
       }
+      // Only drafts are ever removed: recorded messages are never undone (D-030).
       for (const entry of step.created) {
-        if (entry.kind === "drafts") {
-          store.drafts = store.drafts.filter((d) => d.id !== entry.id);
-          reverted.removed.drafts.push(entry.id as Draft["id"]);
-        } else {
-          store.interactions = store.interactions.filter((i) => i.id !== entry.id);
-          reverted.removed.interactions.push(entry.id as Interaction["id"]);
-        }
+        store.drafts = store.drafts.filter((d) => d.id !== entry.id);
+        reverted.removed.drafts.push(entry.id as Draft["id"]);
       }
       steps.delete(id);
       return result(reverted);
+    },
+    gmail: {
+      connection: async () => gmailStatus(),
+      async connect(input) {
+        gmail = {
+          id: gmail?.id ?? crypto.randomUUID(),
+          emailAddress: input.emailAddress.toLowerCase(),
+          status: "connected",
+          connectedAt: input.at,
+          credential: structuredClone(input.credential),
+          historyCursor: input.historyCursor,
+        };
+        return gmailStatus()!;
+      },
+      async disconnect() {
+        const credential = gmail?.credential ?? null;
+        gmail = null;
+        return credential;
+      },
+      async beginSync(minIntervalSeconds) {
+        const now = Date.now();
+        if (!gmail || gmail.status !== "connected") return null;
+        if (gmail.syncStartedAt !== undefined && now - gmail.syncStartedAt < 120_000) return null;
+        if (
+          gmail.lastSyncedAt &&
+          now - Date.parse(gmail.lastSyncedAt) < minIntervalSeconds * 1000
+        ) {
+          return null;
+        }
+        gmail.syncStartedAt = now;
+        return {
+          connectionId: gmail.id,
+          emailAddress: gmail.emailAddress,
+          credential: structuredClone(gmail.credential),
+          historyCursor: gmail.historyCursor,
+        };
+      },
+      async finishSync(connectionId, outcome, historyCursor) {
+        if (!gmail || gmail.id !== connectionId) throw new RepositoryError("not_found");
+        gmail.syncStartedAt = undefined;
+        gmail.historyCursor = historyCursor ?? gmail.historyCursor;
+        if (outcome === "synced" || outcome === "history_reset") {
+          gmail.lastSyncedAt = instant(new Date().toISOString());
+        }
+        if (outcome === "revoked" || outcome === "permission") gmail.status = "needs_reconnect";
+        gmail.lastError = outcome === "synced" ? undefined : outcome;
+      },
+      async recorded(providerMessageIds) {
+        const ids = new Set(providerMessageIds);
+        return new Set(
+          [...gmailMessages.keys()].map((k) => k.split(":")[0]!).filter((id) => ids.has(id)),
+        );
+      },
+      async linkedInteractions() {
+        return new Set([...gmailMessages.values()].map((m) => m.interactionId));
+      },
+      async record(entry): Promise<GmailRecorded> {
+        const person = findOwn(store.people, entry.personId);
+        if (!person) throw new RepositoryError("not_found");
+        if (!gmail || gmail.status !== "connected") throw new RepositoryError("not_found");
+        const key = gmailKey(entry.providerMessageId, person.id);
+        if (gmailMessages.has(key)) return { outcome: "duplicate" };
+
+        if (entry.kind === "link") {
+          const linked = findOwn(store.interactions, entry.interactionId);
+          const taken = [...gmailMessages.values()].some(
+            (m) => m.interactionId === entry.interactionId,
+          );
+          if (
+            !linked ||
+            taken ||
+            linked.personId !== person.id ||
+            linked.kind !== "message_sent" ||
+            linked.channel !== "email"
+          ) {
+            throw new RepositoryError("not_found");
+          }
+          gmailMessages.set(key, { interactionId: linked.id });
+          return result({ outcome: "linked" as const, interaction: linked, person });
+        }
+
+        if (person.relationshipStatus !== entry.relationshipStatus.before) {
+          throw new RepositoryError("conflict");
+        }
+        let draft: Draft | undefined;
+        if (entry.kind === "draft") {
+          const before = current(store.drafts, entry.draft.id, entry.expected);
+          if (before.personId !== person.id) throw new RepositoryError("not_found");
+          if (before.status !== "approved" || before.channel !== "email") {
+            throw new DomainError("draft_not_approved", `Draft ${before.id} is ${before.status}`);
+          }
+          draft = { ...entry.draft, opportunityId: before.opportunityId };
+        }
+        const interaction: Interaction = {
+          ...entry.interaction,
+          opportunityId: draft?.opportunityId,
+        };
+        store.interactions.push(structuredClone(interaction));
+        if (draft) replace("drafts", draft);
+        let after: Person = person;
+        if (entry.relationshipStatus.after !== person.relationshipStatus) {
+          after = {
+            ...person,
+            relationshipStatus: entry.relationshipStatus.after,
+            updatedAt: entry.at,
+          };
+          replace("people", after);
+        }
+        gmailMessages.set(key, { interactionId: interaction.id });
+        return result({ outcome: "recorded" as const, interaction, draft, person: after });
+      },
     },
   };
 }
@@ -354,5 +485,5 @@ type Step = {
     | { kind: "drafts"; before: Draft; after: Instant }
     | { kind: "nextActions"; before: NextAction; after: Instant }
   )[];
-  created: { kind: "drafts" | "interactions"; id: string; after: Instant }[];
+  created: { kind: "drafts"; id: string; after: Instant }[];
 };
