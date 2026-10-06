@@ -1,5 +1,6 @@
 "use client";
 
+import type { WorkspaceActions } from "@/features/workspace/outcome";
 import type { Workspace } from "@/features/workspace/records";
 import { useWorkspace } from "@/features/workspace/use-workspace";
 import { useAnnouncer } from "./item-actions";
@@ -15,18 +16,21 @@ import { useFocus } from "./use-focus";
  * the one that fits. They share one session, one focus and one announcer, so
  * acting in either is reflected in both.
  *
- * Actions apply the real domain rules to this session only. Nothing is saved
- * yet: the Repository gains writes with the first write path (ROADMAP phase 2).
+ * Actions apply the real domain rules and are saved through `actions` before
+ * the screen changes.
  */
 export function Today({
   workspace,
+  actions,
   welcome,
 }: {
   workspace: Workspace;
+  /** Server Actions in production; see WorkspaceActions. */
+  actions: WorkspaceActions;
   /** Said once on arrival, as onboarding ends inside Today. */
   welcome?: string;
 }) {
-  const day = useWorkspace(workspace);
+  const day = useWorkspace(workspace, actions);
   const focus = useFocus(day);
   const announcer = useAnnouncer(day, welcome);
   return (

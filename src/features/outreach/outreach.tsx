@@ -3,6 +3,7 @@
 import pp from "@/features/people/people.module.css";
 import { useAnnouncer } from "@/features/today/item-actions";
 import t from "@/features/today/today.module.css";
+import type { WorkspaceActions } from "@/features/workspace/outcome";
 import type { Workspace } from "@/features/workspace/records";
 import { useWorkspace } from "@/features/workspace/use-workspace";
 import { OutreachDesktop } from "./outreach-desktop";
@@ -18,12 +19,18 @@ import { tracksOf } from "./tracks";
  * surfaces. They share one session and one announcer.
  *
  * Nothing is sent from Reachout. Approve, edit and "Mark as sent" run the
- * domain's draft rules on this session only: marking as sent records what you
- * sent yourself, and a reload shows the Repository's records again (ROADMAP
- * phase 2 adds writes).
+ * domain's draft rules and are saved: marking as sent records what you sent
+ * yourself.
  */
-export function Outreach({ workspace }: { workspace: Workspace }) {
-  const day = useWorkspace(workspace);
+export function Outreach({
+  workspace,
+  actions,
+}: {
+  workspace: Workspace;
+  /** Server Actions in production; see WorkspaceActions. */
+  actions: WorkspaceActions;
+}) {
+  const day = useWorkspace(workspace, actions);
   const announcer = useAnnouncer(day);
   const tracks = tracksOf(day);
   const selection = useTrackInUrl(day);

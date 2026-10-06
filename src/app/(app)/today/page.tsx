@@ -4,6 +4,7 @@ import { SECTIONS } from "@/features/sections";
 import { Today } from "@/features/today/today";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
 import { getRepository } from "@/server/repository";
+import { workspaceActions } from "../workspace-actions";
 
 export const metadata: Metadata = { title: SECTIONS.today.label };
 
@@ -11,5 +12,5 @@ export const metadata: Metadata = { title: SECTIONS.today.label };
 export default async function TodayPage() {
   await connection(); // per request: Today depends on the date and the user's records
   const workspace = await loadWorkspace(await getRepository(), new Date());
-  return <Today workspace={workspace} />;
+  return <Today workspace={workspace} actions={workspaceActions} />;
 }

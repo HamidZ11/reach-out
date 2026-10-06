@@ -1,5 +1,4 @@
 import type { Repository } from "@/data/repository";
-import type { Subject } from "@/domain/research";
 import { calendarDateIn, instant } from "@/domain/time";
 import type { Workspace } from "./records";
 
@@ -15,27 +14,21 @@ export async function loadWorkspace(
   now: Date,
   { research = false }: { research?: boolean } = {},
 ): Promise<Workspace> {
-  const user = await repository.user.get();
-  const [companies, people, opportunities, interactions, drafts, nextActions] = await Promise.all([
-    repository.companies.list(),
-    repository.people.list(),
-    repository.opportunities.list(),
-    repository.interactions.list(),
-    repository.drafts.list(),
-    repository.nextActions.list(),
-  ]);
+  const [user, companies, people, opportunities, interactions, drafts, nextActions] =
+    await Promise.all([
+      repository.user.get(),
+      repository.companies.list(),
+      repository.people.list(),
+      repository.opportunities.list(),
+      repository.interactions.list(),
+      repository.drafts.list(),
+      repository.nextActions.list(),
+    ]);
 
-  const subjects: Subject[] = research
-    ? [
-        ...people.map((p) => ({ type: "person" as const, id: p.id })),
-        ...companies.map((c) => ({ type: "company" as const, id: c.id })),
-        ...opportunities.map((o) => ({ type: "opportunity" as const, id: o.id })),
-      ]
-    : [];
-  const [facts, interpretations] = await Promise.all([
-    Promise.all(subjects.map((s) => repository.research.facts(s))),
-    Promise.all(subjects.map((s) => repository.research.interpretations(s))),
-  ]);
+  // One read each, not one per subject: a subject's facts keep their order.
+  const [facts, interpretations] = research
+    ? await Promise.all([repository.research.facts(), repository.research.interpretations()])
+    : [[], []];
 
   return {
     now: instant(now.toISOString()),
@@ -47,7 +40,7 @@ export async function loadWorkspace(
     interactions,
     drafts,
     nextActions,
-    facts: facts.flat(),
-    interpretations: interpretations.flat(),
+    facts,
+    interpretations,
   };
 }

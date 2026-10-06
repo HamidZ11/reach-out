@@ -2,15 +2,16 @@
 
 ## Stack
 
-| Concern         | Choice                                                                                         | Notes                                                                                                                                                                                           |
-| --------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework       | Next.js 16.3 (App Router, Turbopack), React 19.2                                               | `typedRoutes` on. Middleware is called **Proxy** in v16. Read `node_modules/next/dist/docs/` before using APIs (see AGENTS.md)                                                                  |
-| Language        | TypeScript 5.9, strict + `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns` | TypeScript 7 not adopted yet (D-017)                                                                                                                                                            |
-| Styling         | Tailwind CSS 4, CSS modules                                                                    | The locked tokens (DESIGN.md) are CSS variables on `:root` in `app/globals.css`; the fonts load in `app/fonts.ts`. Components style themselves with CSS modules carrying the prototype's values |
-| Validation      | Zod 4                                                                                          | Domain schemas are the source of truth for record shapes                                                                                                                                        |
-| Tests           | Vitest 5, Testing Library, jsdom                                                               | Playwright once browser-critical flows exist (roadmap phase 2)                                                                                                                                  |
-| Lint / format   | ESLint 9 (`eslint-config-next`), Prettier 3 + Tailwind plugin                                  | Zero warnings allowed; architecture boundaries are lint rules                                                                                                                                   |
-| Package manager | pnpm 11, Node ≥ 24                                                                             |                                                                                                                                                                                                 |
+| Concern         | Choice                                                                                                 | Notes                                                                                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework       | Next.js 16.3 (App Router, Turbopack), React 19.2                                                       | `typedRoutes` on. Middleware is called **Proxy** in v16. Read `node_modules/next/dist/docs/` before using APIs (see AGENTS.md)                                                                  |
+| Language        | TypeScript 5.9, strict + `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`         | TypeScript 7 not adopted yet (D-017)                                                                                                                                                            |
+| Styling         | Tailwind CSS 4, CSS modules                                                                            | The locked tokens (DESIGN.md) are CSS variables on `:root` in `app/globals.css`; the fonts load in `app/fonts.ts`. Components style themselves with CSS modules carrying the prototype's values |
+| Validation      | Zod 4                                                                                                  | Domain schemas are the source of truth for record shapes                                                                                                                                        |
+| Data and auth   | Supabase: Postgres 17 and Auth, through `@supabase/ssr` and `@supabase/supabase-js` on the server only | The Supabase CLI (a dev dependency) runs the local stack, migrations and pgTAP. No ORM (D-027)                                                                                                  |
+| Tests           | Vitest 5, Testing Library, jsdom                                                                       | Playwright once browser-critical flows exist (roadmap phase 2)                                                                                                                                  |
+| Lint / format   | ESLint 9 (`eslint-config-next`), Prettier 3 + Tailwind plugin                                          | Zero warnings allowed; architecture boundaries are lint rules                                                                                                                                   |
+| Package manager | pnpm 11, Node ≥ 24                                                                                     |                                                                                                                                                                                                 |
 
 Scripts: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck` (`next typegen && tsc`), `pnpm test`, `pnpm format`, `pnpm format:check`, and `pnpm check` (all of them in CI order).
 
@@ -18,25 +19,37 @@ Scripts: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck` (`next typegen 
 
 ```
 src/
-  app/          Routes only. Thin: read through src/server, render feature UI.
-    (app)/      Signed-in area: today, people, opportunities, outreach, companies, settings
-    onboarding/ Outside the app shell
+  app/          Routes only. Thin: read through src/server, render feature UI, hold the Server Actions.
+    (app)/      Signed-in area: today, people, opportunities, outreach, companies, settings; actions.ts
+    onboarding/ Outside the app shell; its own Server Action
+    sign-in/    Public: email-link sign-in
+    auth/       The link's landing route (confirm) and the sign-in/sign-out actions
+    error.tsx   A calm page when something can't load
+  proxy.ts      Session refresh and optimistic redirects (Next's Proxy). Never the only check.
   domain/       Pure TypeScript: Zod schemas, types, rules, derivations. No I/O, no React, no clock.
   data/         The Repository interface and its implementations.
-    seed/       Seed dataset + in-memory repository (development and tests)
-  server/       Server-only composition: auth boundary, getRepository(). The only place that picks a data source.
-  features/     Per product area: loaders (take a Repository) and that area's UI.
+    memory/     In-memory repository (tests, design references, the development seed session)
+    seed/       Seed dataset
+    supabase/   The durable repository: row mapping, generated database types
+  server/       Server-only composition: config, Supabase client, auth boundary, getRepository(). The only place that picks a data source.
+  features/     Per product area: loaders and workflow steps (take a Repository), and that area's UI.
     shell/      The app shell: desktop rail, phone tab bar.
-    workspace/  The user's records for the screens: loader, record index, session state.
+    workspace/  The user's records for the screens: loader, record index, state, workflow steps (operations.ts), actions contract (outcome.ts).
     today/      Today: wording, focus, actions, desktop and phone compositions.
     people/     People: grouping and search, knowledge, desktop and phone compositions. Reuses Today's actions.
     pursuing/   Pursuing (route /opportunities): timing groups, stage path, activity, desktop and phone compositions.
     outreach/   Outreach: one track per person grouped by action state, acted on in place; desktop and phone compositions.
     companies/  Companies: derived aggregates (opportunities, people, history) per company; desktop and phone compositions.
-    settings/   Settings: profile and goals (session-only until accounts), and what isn't built yet, said plainly.
-    onboarding/ Onboarding: seven questions, then the records they create (session-only), opening Today.
+    settings/   Settings: profile and goals (saved), the account, and what isn't built yet, said plainly.
+    onboarding/ Onboarding: seven questions, then the records they create, saved once, opening Today.
+    sign-in/    Sign-in, in onboarding's frame.
   components/   Shared presentational pieces: Avatar, icons, date wording.
-  test/         Test setup and record builders.
+  test/         Test setup, record builders, the Repository contract, database-test accounts.
+supabase/
+  migrations/   Versioned schema: tables, constraints, indexes, RLS, grants, workflow functions.
+  tests/        pgTAP checks of access rules, run inside Postgres.
+  templates/    The sign-in email.
+  config.toml   The local stack.
 ```
 
 Add a folder when there is code for it. Do not create `lib/`, `utils/` or `helpers/` as dumping grounds: generic code goes next to its only user until a second user exists.
@@ -57,15 +70,23 @@ server ──▶ data ───────┘
 | `features`, `app` | `@/data/seed` — they take a `Repository` or call `src/server` |
 | `components`      | `data`, `server`, `features`                                  |
 
-Test files are exempt so they can use seed data as fixtures. Production code never imports the design prototypes in `src/app/prototypes` (lint, plus `app/boundaries.test.ts`); the prototypes import production modules instead.
+Test files are exempt so they can use seed data as fixtures. Production code never imports the design prototypes in `src/app/prototypes` (lint, plus `app/boundaries.test.ts`); the prototypes import production modules instead. `app/boundaries.test.ts` also checks that:
+
+- only `data/`, `server/` and the proxy import Supabase;
+- production routes never use the session-only local actions;
+- no application code reads a service key.
 
 ## Server / client boundary
 
 - Pages and layouts are **Server Components** by default. Data is read on the server through `getRepository()`.
 - `src/server/*` begins with `import "server-only"`. Importing it into a Client Component fails the build.
-- Client Components (`"use client"`) receive plain, serialisable domain records as props. They never import `server/` or `data/`.
-- Mutations will be **Server Actions**. Each one validates its input with Zod, gets the repository via `getRepository()`, applies a pure domain function (e.g. `completeNextAction`), and persists the result. The action file stays thin; the rules live in `domain/`.
-- **Until that first write path exists (phase 2), nothing is persisted.** Today's, People's, Pursuing's and Outreach's actions (Companies has none) apply the same domain functions to a session copy of the records (`features/workspace/use-workspace.ts`); a reload shows the Repository's data again.
+- Client Components (`"use client"`) receive plain, serialisable domain records, and Server Actions, as props. In production they never import `server/` or `data/`. The one exception is `createLocalActions`, which runs the workflow over the in-memory repository for tests and the design references only.
+- Mutations are **Server Actions** (`app/(app)/actions.ts`, `app/onboarding/actions.ts`, `app/auth/actions.ts`). Each one is reachable by a direct POST, so each:
+  - parses its input with Zod;
+  - takes the user from the session, never from the input (`getRepository()`);
+  - runs one workflow step (`features/*/operations.ts`), which applies a pure domain function and persists the result.
+- Pages pass the actions to the screens as plain objects (`WorkspaceActions`, `SettingsActions`, `CompleteOnboarding`), so features never import `server/`. Tests and the design references pass `createLocalActions` instead, which runs the same steps over an in-memory repository.
+- **A screen changes only once the save answers.** Failures are announced in calm words (`problemMessage`) and offer no Undo. A second click while saving does nothing. After a saved change the action calls `refresh()`, so the shell (Today's dot) catches up.
 - Vitest cannot render async Server Components. Test their loaders (`features/*/load-*.ts`) directly, and cover full pages with Playwright later.
 - **What a link or a refresh must keep lives in the URL, by id.**
   - People's selected person is `/people?person=<id>`; Pursuing's selected opportunity is `/opportunities?opportunity=<id>`; Outreach's open track is `/outreach?person=<id>` (one track per person, D-014). Build links with `personHref`, `opportunityHref` and `outreachHref` (`features/sections.ts`), never with names or titles.
@@ -75,47 +96,83 @@ Test files are exempt so they can use seed data as fixtures. Production code nev
 
 ## Repository abstraction
 
-[`src/data/repository.ts`](src/data/repository.ts) is the only way product code reads records.
+[`src/data/repository.ts`](src/data/repository.ts) is the only way product code reads and writes records.
 
-- **Scoped at creation.** A repository is created for one user, so no method takes a `userId` and no caller can forget the ownership filter.
-- **Plain interface, no factory hierarchy.** One object grouped by entity: `repo.people.list()`, `repo.research.facts(subject)`.
-- **Ordering is part of the contract** (documented on the interface), so callers never re-sort for correctness.
-- **Writes arrive with the features that need them**, next to the domain operation they persist (for example `nextActions.save(completeNextAction(...))`).
-- Feature loaders take a `Repository` parameter, so they are tested against the seed repository with no mocking.
+- **Scoped at creation.** A repository is created for one signed-in user (and their workspace), so no method takes a `userId` and no caller can forget the ownership filter.
+- **Plain interface, no factory hierarchy.** One object grouped by entity: `repo.people.list()`, `repo.drafts.approve(…)`, `repo.research.facts(subject?)`.
+- **Ordering is part of the contract** (documented on the interface), so callers never re-sort for correctness. Implementations sort in TypeScript with the same comparators, so collation can't differ.
+- **Writes are explicit, one per workflow step:**
+  - each takes the domain's result and the `updatedAt` the caller read (`expected`), and returns the saved records with an `undo` step;
+  - it throws `DomainError` (a rule) or `RepositoryError` (`not_found`, `conflict`, `onboarding_complete`, `undo_unavailable`, `invalid`, `unauthenticated`, `unavailable`);
+  - there is no generic CRUD.
+- **The contract is tested.** `src/test/repository-contract.ts` runs against the in-memory repository in `pnpm test` and against Supabase in `pnpm test:db`.
 
-## Seed repository
+## In-memory repository
 
-- [`createSeedDataset(anchor)`](src/data/seed/dataset.ts) builds a realistic fictional dataset: one student, 5 companies, 10 people, 6 opportunities, 14 interactions, 3 drafts, 8 next actions, plus facts and interpretations. Every date is relative to `anchor`, so the data stays plausible on any day. Development uses today's date; tests pin a date.
-- The whole set is parsed through `RecordSetSchema` and checked with `findIntegrityViolations` (ownership, references, uniqueness). The repository refuses inconsistent data.
-- It is read-only and returns copies.
+- [`createMemoryRepository`](src/data/memory/memory-repository.ts) holds a validated RecordSet, refuses inconsistent data (`findIntegrityViolations`), returns copies, and mirrors the database functions' checks: ownership, version, transition, once-only onboarding and exact undo.
+- [`createSeedDataset(anchor)`](src/data/seed/dataset.ts) builds a realistic fictional dataset: one student, 5 companies, 10 people, 6 opportunities, 14 interactions, 3 drafts, 8 next actions, plus facts and interpretations. Every date is relative to `anchor`.
+- **Used by:** tests, the design references (always the seed data, development only), and the development seed session (`REACHOUT_DEV_SEED=true`, never in production; it lasts until the server restarts).
 - No code may branch on seed names or ids.
 
-## Persistence (future)
+## Persistence
 
-PostgreSQL, most likely on Supabase (D-007). No database exists yet: no hosted project, credentials, migrations or RLS.
+PostgreSQL on Supabase (D-025, D-027). The schema is in [`supabase/migrations/`](supabase/migrations/), applied in order to a fresh database.
 
-When it arrives (roadmap phase 6):
-
-- Tables mirror the domain entities. Every owned table has `user_id`; references are foreign keys. Discriminated unions (interaction kind, draft status, next-action status) become a type column plus nullable columns, guarded by check constraints matching the Zod invariants.
-- Add `src/data/postgres/` implementing the same `Repository` and validate rows with the same schemas on read. Change `getRepository()` in [`src/server/repository.ts`](src/server/repository.ts), and nothing else.
-- Row-level security mirrors the ownership rule (`user_id = auth.uid()`) as defence in depth. The repository's own scoping stays.
-- `findIntegrityViolations` becomes the reference for which constraints the schema must enforce.
-- Run the existing loader tests against both implementations.
+- **Accounts:**
+  - `profiles` is the domain's User, keyed by the Auth user id;
+  - `workspaces` holds one personal workspace per account;
+  - `workspace_members` says who may use each workspace.
+- **Records:**
+  - one table per domain entity: companies, people, opportunities (with `opportunity_people` for `personIds`, in order), interactions, drafts, next_actions, source_facts, interpretations (with `interpretation_facts`);
+  - every row carries `workspace_id`;
+  - discriminated unions are a type column plus nullable columns, guarded by check constraints that mirror the Zod invariants;
+  - DOMAIN.md's cross-record rules are declarative where possible: one open follow-up per person (partial unique index), a sent draft pointing at a `message_sent` to the same person (composite foreign key), unique company names per workspace (generated key).
+- **Integrity:**
+  - references are composite foreign keys on `(workspace_id, id)`, so nothing points across workspaces;
+  - they never cascade, so deleting something that history points at fails;
+  - only removing a workspace (with its account) removes its records.
+- **Not stored:** Today, outreach state, timing groups and company aggregates are derived on read. Instants are `timestamptz` in UTC; dates are `date`.
+- **Indexes** follow the reads and the foreign keys: membership by profile, each table by `(workspace_id, id)`, people and opportunities by company, interactions by person and time, drafts by person and status, next actions by status and due date, and the polymorphic subjects of facts and interpretations.
+- **Row-level security** is on every table. Members of a workspace can read its rows (`private.member_workspaces()`); each profile is readable only by its own user.
+- **Grants:**
+  - the Data API's `authenticated` role can only `SELECT`;
+  - `anon` can do nothing;
+  - the `private` schema (helpers, `undo_steps`) is closed to both.
+- **Writes** are SQL functions in `supabase/migrations/…_workflow_functions.sql`:
+  - each is owned by `reachout_writer` (no login, no RLS bypass) and callable only by signed-in users;
+  - each re-checks visibility, the caller's version and the transition, in one transaction, and records an undo step.
+- **The Supabase repository** ([`src/data/supabase/`](src/data/supabase/)) reads through the Data API as the user, maps rows to domain records explicitly (`rows.ts`), parses every row with the domain schemas, and writes only through those functions. Database types are generated (`pnpm db:types`).
+- **First sign-in:** `getRepository()` finds the user's workspace, or calls `bootstrap_account`, which creates the profile, workspace and membership idempotently.
+- **Migrations:**
+  - add one with `pnpm exec supabase migration new <name>`, apply from scratch with `pnpm db:reset`, then regenerate types with `pnpm db:types`;
+  - never change the schema in the dashboard;
+  - deployed migrations are never edited: add a new one.
 
 ## Authentication
 
-Authentication is a hard requirement and is **not operational**. See [`src/server/auth.ts`](src/server/auth.ts).
+Supabase Auth, signing in by email link (D-026). See [`src/server/auth.ts`](src/server/auth.ts) and [`src/server/config.ts`](src/server/config.ts).
 
-- **Authenticated user:** a `Session` (`userId`, `method`) whose `userId` is a `User.id`. Sign-in identity belongs to the provider; the product profile is the `User` record.
-- **Where the session enters:** only through `getSession()` / `requireSession()`. `getRepository()` calls `requireSession()`, so every data read is authenticated by construction. Following Next's guidance, access control sits in this data access layer, not in layouts, because layouts do not re-run on navigation.
-- **Protected routes:** everything under `(app)/` and `/onboarding`. Every route reads through `getRepository()`, so it renders per request and, in production, fails closed. Onboarding builds its records through the domain schemas and holds them for the session until the Repository gains writes.
-- **Current behaviour:** outside production, every request is the seed user (`method: "development"`). In production, `getSession()` throws `AuthNotConfiguredError`, so an unconfigured deployment fails closed.
-- **Provider integration point (phase 6, likely Supabase Auth):**
-  - `getSession()` reads the provider session from cookies and maps it to `Session`.
-  - Add public `/sign-in` and an auth callback route.
-  - `requireSession()` redirects to sign-in instead of throwing.
-  - Optionally add `src/proxy.ts` for optimistic redirects based on the cookie alone. Proxy is never the only check.
-  - On first sign-in, create the `User` record, then route to `/onboarding` until `onboardingCompletedAt` is set.
+- **Modes** (`authMode()`):
+  - `supabase`: requires `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, https unless the URL is on this machine;
+  - `seed`: `REACHOUT_DEV_SEED=true`, development only, refused in production;
+  - otherwise it throws `AuthNotConfiguredError`, so an unconfigured deployment serves nothing.
+- **Session:** `getSession()` verifies the JWT from the httpOnly cookies on the server (`getClaims`), and nothing the browser sends can choose the user. `requireSession()` redirects to `/sign-in` without one. `getRepository()` calls it, so every read and write is authenticated by construction.
+- **Proxy** ([`src/proxy.ts`](src/proxy.ts)):
+  - refreshes the session cookies before rendering;
+  - sends signed-out page loads to `/sign-in?next=<path>`, and signed-in visits to `/sign-in` on to the app;
+  - skips static files;
+  - is never the only check.
+- **Sign-in:**
+  - `/sign-in` asks for an email and calls `signInWithOtp` from a Server Action;
+  - the return path waits in a short-lived httpOnly cookie, checked by `safeNextPath` when the link is used (no open redirects);
+  - `/auth/confirm` exchanges the link's token hash (or code) for a session, or returns to `/sign-in?error=link`.
+- **Sign-out:** a Server Action in Settings ends this browser's session.
+- **Routing:**
+  - `/` goes to `/onboarding` until onboarding is complete, then to `/today`;
+  - the app layout and the onboarding page make the same redirects;
+  - these redirects are routing, not security.
+- **Protected routes:** everything except `/sign-in`, `/auth/*` and the development-only `/prototypes`.
+- **Timeouts:** every Supabase call is abandoned after 10 seconds and reported as unavailable, so nothing hangs.
 
 ## Email integration boundary (future)
 
@@ -148,20 +205,31 @@ No AI SDK or provider is installed. When AI arrives:
 
 ## Testing
 
-- **Unit (Vitest):** domain rules and derivations, especially Today. Builders in [`src/test/builders.ts`](src/test/builders.ts) construct fixtures through the real schemas.
-- **Integration (Vitest):** feature loaders over the seed repository; the server boundary (auth stub, fail-closed).
-- **Components (Testing Library):** synchronous components only. `server-only` is aliased to a no-op under Vitest.
-- **Browser (Playwright, from phase 2):** onboarding end-to-end, then the core loop. Not installed yet.
+Three layers, kept distinct:
+
+- **Unit and component (`pnpm test`, part of `pnpm check`):**
+  - domain rules and derivations, especially Today; builders in [`src/test/builders.ts`](src/test/builders.ts) construct fixtures through the real schemas;
+  - feature loaders and workflow steps over the in-memory repository;
+  - the server boundary: modes, fail-closed, the seed session refused in production, `safeNextPath`;
+  - components with Testing Library, acting through `createLocalActions` and awaiting each saved answer;
+  - `server-only` is aliased to a no-op under Vitest.
+- **Repository contract and database (`pnpm test:db`, needs `pnpm db:start`):**
+  - real accounts signed in by email link on the local Supabase;
+  - the same Repository contract as the in-memory one;
+  - two-account isolation through the Data API: reads, reads by id, every workflow function, direct writes to every table, and signed out;
+  - racing first sign-ins and onboarding submissions.
+  - These fail, rather than skip, if the local stack isn't running.
+- **In Postgres (`pnpm db:test`):** pgTAP checks that every table has RLS and policies, the grants, function ownership by `reachout_writer`, and isolation in plain SQL.
+- **Browser (Playwright):** not installed yet. Runtime checks so far are headless-Chrome DOM measurements (no screenshots) recorded in DEVLOG.md.
 - Test behaviour that could plausibly break. Do not write tests that restate a type.
 
 ## Deployment assumptions
 
-- Likely Vercel, on the Node.js runtime. Nothing is deployed until authentication and persistence exist (phase 6). Production fails closed before then.
-- Secrets go only in environment variables, read only in `src/server/` and future adapters. `.env*` files are gitignored.
+- Likely Vercel, on the Node.js runtime, with a hosted Supabase project. Nothing is deployed yet: [docs/launch-checklist.md](docs/launch-checklist.md) lists what the live project needs first.
+- Configuration is `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, read only in `src/server/`. The application needs no service key. `.env*` files are gitignored; `.env.example` lists the names.
 - No custom servers, no edge runtime requirement, no background workers until Gmail sync needs them (decide then).
 
 ## Open technical decisions
 
-- **`cacheComponents` (Partial Prerendering):** off. Revisit when real per-user data arrives, since it changes how dynamic reads must be wrapped (D-018).
-- **Postgres access layer** (Supabase client, an ORM such as Drizzle, or SQL): decide in phase 6.
-- **Optimistic UI and caching for mutations:** decide with the first write path (phase 2).
+- **Optimistic UI:** not used. A screen changes when the save answers, which keeps failures honest. Revisit if latency in production makes actions feel slow.
+- **Collaborators in a workspace:** the storage allows it (D-025); the product doesn't. It needs a product decision first.

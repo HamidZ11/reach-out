@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { calendarDate, instant } from "@/domain/time";
 import type { Workspace } from "@/features/workspace/records";
 import { useWorkspace } from "@/features/workspace/use-workspace";
+import { READ_ONLY_ACTIONS } from "@/test/actions";
 import {
   buildCompany,
   buildDraft,
@@ -28,7 +29,7 @@ function session(records: Partial<Workspace>) {
     interpretations: [],
     ...records,
   };
-  return renderHook(() => useWorkspace(workspace)).result.current;
+  return renderHook(() => useWorkspace(workspace, READ_ONLY_ACTIONS)).result.current;
 }
 
 const halden = buildCompany({ id: "cmp_halden", name: "Halden Robotics" });

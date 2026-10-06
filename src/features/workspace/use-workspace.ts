@@ -1,43 +1,46 @@
 import { useMemo, useRef, useState } from "react";
 import type { Draft } from "@/domain/draft";
-import { approveDraft, DraftSchema, markDraftSent, reviseDraft } from "@/domain/draft";
-import type { DraftId, NextActionId, OpportunityId, PersonId } from "@/domain/ids";
+import type { DraftId, NextActionId, PersonId } from "@/domain/ids";
 import type { Interaction } from "@/domain/interaction";
-import { MessageSentSchema } from "@/domain/interaction";
 import type { NextAction } from "@/domain/next-action";
-import { completeNextAction, snoozeNextAction } from "@/domain/next-action";
+import { snoozeNextAction } from "@/domain/next-action";
 import { deriveOutreachState } from "@/domain/outreach";
 import type { Person } from "@/domain/person";
-import { relationshipStatusAfter } from "@/domain/person";
 import type { Instant } from "@/domain/time";
 import { compareInstants } from "@/domain/time";
 import { deriveToday } from "@/domain/today";
 import { dayOf } from "@/components/dates";
+import type { Changes, DraftInput, Outcome, Problem, WorkspaceActions } from "./outcome";
+import { problemMessage } from "./outcome";
 import type { Workspace } from "./records";
 import { indexRecords } from "./records";
 
+/** How a change went, for the announcer. `ignored`: another change was still saving. */
+export type ActResult =
+  | { ok: true }
+  | { ok: false; ignored: true }
+  | { ok: false; ignored?: false; problem: Problem; message: string };
+
 /**
- * Session state over the user's workspace. Actions run the real domain rules
- * (complete, snooze, approve, revise, mark sent, save a draft) against this
- * page's copy of the records, and Today is re-derived with `deriveToday`.
+ * The user's workspace on screen. Actions run the real workflow steps through
+ * `actions` (Server Actions in production, which persist through the
+ * Repository) and the screen changes only once the answer arrives: what it
+ * shows is what was saved, and a failure says so. Today is re-derived with
+ * `deriveToday` from the saved records.
  *
- * NOT PERSISTED. The Repository is read-only until the first write path
- * (ROADMAP phase 2: repository writes behind Server Actions). Until then a
- * reload restores the records as the Repository has them.
+ * Undo puts back exactly what the last action changed, through the same
+ * actions, as long as nothing has changed it since.
  */
-export function useWorkspace(snapshot: Workspace) {
+export function useWorkspace(snapshot: Workspace, actions: WorkspaceActions) {
   const { now, today, user } = snapshot;
   const [people, setPeople] = useState<Person[]>(snapshot.people);
   const [nextActions, setNextActions] = useState<NextAction[]>(snapshot.nextActions);
   const [drafts, setDrafts] = useState<Draft[]>(snapshot.drafts);
   const [interactions, setInteractions] = useState<Interaction[]>(snapshot.interactions);
-  const created = useRef(0);
-  // Undo history for this session: the record sets before each action.
-  const [past, setPast] = useState<
-    { people: Person[]; nextActions: NextAction[]; drafts: Draft[]; interactions: Interaction[] }[]
-  >([]);
-  const remember = () =>
-    setPast((p) => [...p, { people, nextActions, drafts, interactions }].slice(-20));
+  // Undo steps for this page's actions, newest last.
+  const [steps, setSteps] = useState<string[]>([]);
+  const [pending, setPending] = useState(false);
+  const busy = useRef(false);
 
   const records = useMemo(
     () => ({
@@ -83,13 +86,49 @@ export function useWorkspace(snapshot: Workspace) {
     ].toSorted((a, b) => compareInstants(b.at, a.at));
   }, [nextActions, drafts, index, today, user.timeZone]);
 
-  const updateAction = (id: NextActionId, change: (a: NextAction) => NextAction) => {
-    remember();
-    setNextActions((all) => all.map((a) => (a.id === id ? change(a) : a)));
+  /** Saved records replace what's on screen; removed ones go. */
+  const apply = (changes: Changes) => {
+    setPeople((all) => merge(all, changes.people));
+    setNextActions((all) => merge(all, changes.nextActions));
+    setDrafts((all) =>
+      merge(all, changes.drafts).filter((d) => !changes.removed?.drafts?.includes(d.id)),
+    );
+    setInteractions((all) =>
+      merge(all, changes.interactions).filter(
+        (i) => !changes.removed?.interactions?.includes(i.id),
+      ),
+    );
   };
-  const updateDraft = (id: DraftId, change: (d: Draft) => Draft) => {
-    remember();
-    setDrafts((all) => all.map((d) => (d.id === id ? change(d) : d)));
+
+  /** One change at a time: a second click while saving does nothing. */
+  async function perform(call: () => Promise<Outcome>): Promise<ActResult> {
+    if (busy.current) return { ok: false, ignored: true };
+    busy.current = true;
+    setPending(true);
+    try {
+      const outcome = await call();
+      if (!outcome.ok) {
+        return { ok: false, problem: outcome.problem, message: problemMessage(outcome.problem) };
+      }
+      apply(outcome.changes);
+      const undo = outcome.undo;
+      if (undo) setSteps((s) => [...s, undo].slice(-20));
+      return { ok: true };
+    } catch (error) {
+      console.error("A workspace change could not be sent", error);
+      return { ok: false, problem: "unavailable", message: problemMessage("unavailable") };
+    } finally {
+      busy.current = false;
+      setPending(false);
+    }
+  }
+
+  const actionById = (id: NextActionId) => nextActions.find((a) => a.id === id);
+  const draftById = (id: DraftId) => drafts.find((d) => d.id === id);
+  const missing: ActResult = {
+    ok: false,
+    problem: "not_found",
+    message: problemMessage("not_found"),
   };
 
   return {
@@ -102,77 +141,65 @@ export function useWorkspace(snapshot: Workspace) {
     contexts,
     finished,
     outreachOf,
-    canUndo: past.length > 0,
-    /** Restores the records as they were before the last action. */
-    undo() {
-      const last = past.at(-1);
-      if (!last) return;
-      setPeople(last.people);
-      setNextActions(last.nextActions);
-      setDrafts(last.drafts);
-      setInteractions(last.interactions);
-      setPast((p) => p.slice(0, -1));
+    /** A change is being saved. */
+    pending,
+    canUndo: steps.length > 0,
+    /** Puts back what the last action changed. */
+    async undo(): Promise<ActResult> {
+      const step = steps.at(-1);
+      if (!step) return { ok: false, ignored: true };
+      const result = await perform(() => actions.undo({ step }));
+      // Spent, or no longer possible: either way this step is done with.
+      if (result.ok || (!result.ignored && result.problem !== "unavailable")) {
+        setSteps((s) => s.filter((x) => x !== step));
+      }
+      return result;
     },
-    complete: (id: NextActionId) => updateAction(id, (a) => completeNextAction(a, now)),
-    snooze: (id: NextActionId, days = 1) =>
-      updateAction(id, (a) => snoozeNextAction(a, days, today, now)),
+    complete(id: NextActionId) {
+      const action = actionById(id);
+      if (!action) return Promise.resolve(missing);
+      return perform(() => actions.completeNextAction({ id, expected: action.updatedAt }));
+    },
+    snooze(id: NextActionId, days = 1) {
+      const action = actionById(id);
+      if (!action) return Promise.resolve(missing);
+      return perform(() => actions.snoozeNextAction({ id, days, expected: action.updatedAt }));
+    },
     /** The date a snooze would move an action to, from the domain rule itself. */
     snoozeTarget: (action: NextAction, days = 1) =>
       snoozeNextAction(action, days, today, now).dueOn,
-    approve: (id: DraftId) => updateDraft(id, (d) => approveDraft(d, now)),
-    revise: (id: DraftId, body: string) => updateDraft(id, (d) => reviseDraft(d, { body }, now)),
+    approve(id: DraftId) {
+      const draft = draftById(id);
+      if (!draft) return Promise.resolve(missing);
+      return perform(() => actions.approveDraft({ id, expected: draft.updatedAt }));
+    },
+    revise(id: DraftId, body: string) {
+      const draft = draftById(id);
+      if (!draft) return Promise.resolve(missing);
+      return perform(() => actions.reviseDraft({ id, body, expected: draft.updatedAt }));
+    },
+    /** Records what the user sent themselves. Nothing is sent from Reachout. */
     markSent(id: DraftId) {
-      const draft = drafts.find((d) => d.id === id);
-      if (!draft) return;
-      const sent = MessageSentSchema.parse({
-        id: `local_sent_${draft.id}`,
-        userId: draft.userId,
-        personId: draft.personId,
-        opportunityId: draft.opportunityId,
-        kind: "message_sent",
-        channel: draft.channel,
-        subject: draft.subject,
-        body: draft.body,
-        occurredAt: now,
-        summary: draft.subject ?? draft.body.split("\n")[0] ?? draft.body,
-        createdAt: now,
-        updatedAt: now,
-      });
-      updateDraft(id, (d) => markDraftSent(d, sent.id, now));
-      setInteractions((all) => [...all, sent]);
-      setPeople((all) =>
-        all.map((p) =>
-          p.id === draft.personId
-            ? {
-                ...p,
-                relationshipStatus: relationshipStatusAfter(p.relationshipStatus, "message_sent"),
-              }
-            : p,
-        ),
+      const draft = draftById(id);
+      if (!draft) return Promise.resolve(missing);
+      return perform(() => actions.markDraftSent({ id, expected: draft.updatedAt }));
+    },
+    saveDraft(input: DraftInput) {
+      return perform(() =>
+        actions.createDraft({ ...input, subject: input.subject?.trim() || undefined }),
       );
     },
-    saveDraft(input: {
-      personId: PersonId;
-      opportunityId?: OpportunityId;
-      channel: Draft["channel"];
-      subject?: string;
-      body: string;
-    }) {
-      created.current += 1;
-      remember();
-      const draft = DraftSchema.parse({
-        id: `local_draft_${created.current}`,
-        userId: user.id,
-        ...input,
-        subject: input.subject?.trim() || undefined,
-        origin: "user",
-        status: "awaiting_approval",
-        createdAt: now,
-        updatedAt: now,
-      });
-      setDrafts((all) => [...all, draft]);
-    },
   };
+}
+
+function merge<T extends { id: string }>(all: T[], changed: T[] | undefined): T[] {
+  if (!changed?.length) return all;
+  const byId = new Map(changed.map((record) => [record.id, record]));
+  const known = new Set(all.map((record) => record.id));
+  return [
+    ...all.map((record) => byId.get(record.id) ?? record),
+    ...changed.filter((r) => !known.has(r.id)),
+  ];
 }
 
 export type WorkspaceState = ReturnType<typeof useWorkspace>;

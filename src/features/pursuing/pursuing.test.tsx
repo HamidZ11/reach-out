@@ -1,10 +1,12 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSeedDataset, SEED_USER_ID } from "@/data/seed/dataset";
 import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate } from "@/domain/time";
-import type { Workspace } from "@/features/workspace/records";
+import type { Repository } from "@/data/repository";
+import { createLocalActions } from "@/features/workspace/local-actions";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
+import type { Workspace } from "@/features/workspace/records";
 import { currentPath, syncSearchParamsWithHistory, visit } from "@/test/navigation";
 import { Pursuing } from "./pursuing";
 
@@ -38,10 +40,12 @@ const REFERRAL = "Referral for the summer engineering internship";
 const CALDER = "Spring Insight Programme 2027";
 const CLOSED = "Data Engineering Summer Internship 2027";
 
+const ANCHOR = calendarDate("2026-10-05");
+const NOW = new Date("2026-10-05T09:00:00Z");
+
 beforeAll(async () => {
-  const anchor = calendarDate("2026-10-05");
-  const repository = createSeedRepository(createSeedDataset(anchor), SEED_USER_ID);
-  workspace = await loadWorkspace(repository, new Date("2026-10-05T09:00:00Z"), {
+  const repository = createSeedRepository(createSeedDataset(ANCHOR), SEED_USER_ID);
+  workspace = await loadWorkspace(repository, NOW, {
     research: true,
   });
   // jsdom does not lay out, so it has no scrolling.
@@ -53,8 +57,10 @@ beforeEach(() => {
   visit("/opportunities");
 });
 
-function renderPursuing() {
-  const { container, unmount } = render(<Pursuing workspace={workspace} />);
+function renderPursuing(snapshot: Workspace = workspace, repository?: Repository) {
+  const { container, unmount } = render(
+    <Pursuing workspace={snapshot} actions={createLocalActions(snapshot, repository)} />,
+  );
   const layout = (name: "desktop" | "phone") => {
     const element = container.querySelector<HTMLElement>(`[data-layout="${name}"]`);
     if (!element) throw new Error(`No ${name} layout`);
@@ -208,26 +214,28 @@ describe("production Pursuing — desktop", () => {
     expect(desktop.queryByRole("region", { name: "What happens next" })).toBeNull();
   });
 
-  it("actions run the real domain rules for this session only", () => {
-    const { desktop, unmount } = renderPursuing();
+  it("actions run the real domain rules, and what was saved survives a reload", async () => {
+    const repository = createSeedRepository(createSeedDataset(ANCHOR), SEED_USER_ID);
+    const saved = await loadWorkspace(repository, NOW, { research: true });
+    const { desktop, unmount } = renderPursuing(saved, repository);
     fireEvent.click(desktop.getByRole("button", { name: startsWith(RESEARCH) }));
     const next = () => desktop.getByRole("region", { name: "What happens next" });
     const task = "Finish the research statement draft and send it to Ravi for feedback";
     expect(within(next()).getByText(task)).toBeInTheDocument();
     fireEvent.click(within(next()).getByRole("button", { name: "Mark done" }));
-    expect(desktop.getByRole("status")).toHaveTextContent(`Done: ${task}.`);
+    await waitFor(() => expect(desktop.getByRole("status")).toHaveTextContent(`Done: ${task}.`));
     // Today no longer asks anything here; the planned follow-up is next.
     expect(
       within(next()).getByText("Follow up with Dr Marsh about placements"),
     ).toBeInTheDocument();
 
-    // Nothing was saved: a fresh page has the step open again.
+    // It was saved: a fresh read has the step done and the follow-up next.
     unmount();
     visit(`/opportunities?opportunity=${opportunityId(RESEARCH)}`);
-    const again = renderPursuing().desktop;
-    expect(
-      within(again.getByRole("region", { name: "What happens next" })).getByText(task),
-    ).toBeInTheDocument();
+    const again = renderPursuing(await loadWorkspace(repository, NOW, { research: true })).desktop;
+    const nextAgain = within(again.getByRole("region", { name: "What happens next" }));
+    expect(nextAgain.queryByText(task)).toBeNull();
+    expect(nextAgain.getByText("Follow up with Dr Marsh about placements")).toBeInTheDocument();
   });
 
   it("has no arrow-key or single-key navigation: Enter and Space select", () => {

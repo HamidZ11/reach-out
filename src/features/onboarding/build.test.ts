@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createSeedDataset, SEED_USER_ID } from "@/data/seed/dataset";
+import { createMemoryRepository } from "@/data/memory/memory-repository";
 import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate, instant } from "@/domain/time";
 import { deriveToday } from "@/domain/today";
 import { buildUser } from "@/test/builders";
 import type { OnboardingBase } from "./build";
 import { buildWorkspace } from "./build";
+import { completeOnboardingStep } from "./complete";
 import { loadOnboarding } from "./load-onboarding";
 import type { Answers } from "./questions";
 import { EMPTY } from "./questions";
@@ -52,7 +54,7 @@ describe("onboarding's outcome", () => {
       type: "internship",
       deadline: "2026-03-14",
       url: "https://halden.example/careers",
-      personIds: ["onboarding_person"],
+      personIds: [w.people[0]?.id],
     });
     expect(w.people[0]).toMatchObject({
       name: "Priya Natarajan",
@@ -65,7 +67,7 @@ describe("onboarding's outcome", () => {
       kind: "reach_out",
       title: "Send Priya a message",
       dueOn: "2026-03-10",
-      personId: "onboarding_person",
+      personId: w.people[0]?.id,
     });
   });
 
@@ -106,5 +108,74 @@ describe("onboarding's outcome", () => {
     expect(loaded.user.id).toBe(SEED_USER_ID);
     expect(loaded.today).toBe("2026-10-05");
     expect(loaded.now).toBe("2026-10-04T23:30:00.000Z");
+  });
+});
+
+describe("finishing onboarding, saved", () => {
+  const fresh = () =>
+    createMemoryRepository(
+      {
+        users: [base.user],
+        companies: [],
+        people: [],
+        opportunities: [],
+        interactions: [],
+        drafts: [],
+        nextActions: [],
+        sourceFacts: [],
+        interpretations: [],
+      },
+      base.user.id,
+    );
+  const at = new Date(base.now);
+
+  it("saves goals, the records and completion together, then reads Today back from them", async () => {
+    const repository = fresh();
+    const result = await completeOnboardingStep(
+      repository,
+      { answers, timeZone: "America/New_York" },
+      at,
+    );
+    if (!result.ok) throw new Error(result.problem);
+    const user = await repository.user.get();
+    expect(user.onboardingCompletedAt).toBe(base.now);
+    expect(user.timeZone).toBe("America/New_York");
+    expect(user.goals?.objective).toBe("internship");
+    expect(result.workspace.people.map((p) => p.name)).toEqual(["Priya Natarajan"]);
+    expect(deriveToday(result.workspace).map((item) => item.kind)).toEqual([
+      "deadline_approaching",
+      "upcoming_action",
+    ]);
+  });
+
+  it("happens once: a second submission is refused and nothing is duplicated", async () => {
+    const repository = fresh();
+    const input = { answers, timeZone: "Europe/London" };
+    expect((await completeOnboardingStep(repository, input, at)).ok).toBe(true);
+    expect(await completeOnboardingStep(repository, input, at)).toEqual({
+      ok: false,
+      problem: "onboarding_complete",
+    });
+    expect(await repository.people.list()).toHaveLength(1);
+    expect(await repository.companies.list()).toHaveLength(1);
+    expect(await repository.nextActions.list()).toHaveLength(1);
+  });
+
+  it("refuses unfinished answers on the server, saving nothing", async () => {
+    const repository = fresh();
+    const result = await completeOnboardingStep(
+      repository,
+      { answers: { ...answers, personName: " " }, timeZone: "Europe/London" },
+      at,
+    );
+    expect(result).toEqual({ ok: false, problem: "invalid" });
+    expect((await repository.user.get()).onboardingCompletedAt).toBeUndefined();
+    expect(await repository.people.list()).toEqual([]);
+  });
+
+  it("an unknown time zone keeps the account's own", async () => {
+    const repository = fresh();
+    await completeOnboardingStep(repository, { answers, timeZone: "Mars/Olympus" }, at);
+    expect((await repository.user.get()).timeZone).toBe(base.user.timeZone);
   });
 });

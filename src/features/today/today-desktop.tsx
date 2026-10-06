@@ -21,7 +21,7 @@ import {
 import type { WorkspaceState } from "@/features/workspace/use-workspace";
 import { tileFor } from "./date-tile";
 import type { Announce, Announcer } from "./item-actions";
-import { ActionButton, useItemActions } from "./item-actions";
+import { ActionButton, announceResult, useItemActions } from "./item-actions";
 import { Standing, Status } from "./person";
 import s from "./today.module.css";
 import type { Focus } from "./use-focus";
@@ -75,8 +75,9 @@ function Brief({
                 type="button"
                 className={`${s.text} ${s.small}`}
                 onClick={() => {
-                  day.complete(a.id);
-                  announce(`Done: ${a.title}.`);
+                  void day
+                    .complete(a.id)
+                    .then((r) => announceResult(r, announce, `Done: ${a.title}.`));
                 }}
               >
                 Done

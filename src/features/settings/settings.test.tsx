@@ -1,10 +1,14 @@
-import { fireEvent, render, within } from "@testing-library/react";
-import { beforeAll, describe, expect, it } from "vitest";
+import { fireEvent, render, waitFor, within } from "@testing-library/react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { Repository } from "@/data/repository";
 import { createSeedDataset, SEED_USER_ID } from "@/data/seed/dataset";
 import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate } from "@/domain/time";
-import type { Workspace } from "@/features/workspace/records";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
+import type { Workspace } from "@/features/workspace/records";
+import type { SettingsActions } from "./operations";
+import { GoalsInput, ProfileInput, saveGoalsStep, saveProfileStep } from "./operations";
+import type { Account } from "./settings";
 import { Settings } from "./settings";
 
 /**
@@ -14,21 +18,52 @@ import { Settings } from "./settings";
  */
 
 let workspace: Workspace;
+const ANCHOR = calendarDate("2026-10-05");
+const NOW = new Date("2026-10-05T09:00:00Z");
 
 beforeAll(async () => {
-  const anchor = calendarDate("2026-10-05");
-  const repository = createSeedRepository(createSeedDataset(anchor), SEED_USER_ID);
-  workspace = await loadWorkspace(repository, new Date("2026-10-05T09:00:00Z"));
+  const repository = createSeedRepository(createSeedDataset(ANCHOR), SEED_USER_ID);
+  workspace = await loadWorkspace(repository, NOW);
 });
 
-function renderSettings(w: Workspace = workspace) {
-  const { container, unmount } = render(<Settings workspace={w} />);
+/** Settings' saves, through the same steps the Server Actions run. */
+function actionsFor(repository: Repository): SettingsActions {
+  return {
+    saveProfile: (input) => saveProfileStep(repository, ProfileInput.parse(input), NOW),
+    saveGoals: (input) => saveGoalsStep(repository, GoalsInput.parse(input), NOW),
+  };
+}
+
+function renderSettings(
+  w: Workspace = workspace,
+  options: { actions?: SettingsActions; account?: Account } = {},
+) {
+  // A fresh account per render, holding exactly what the workspace shows.
+  const repository = createSeedRepository(createSeedDataset(ANCHOR), SEED_USER_ID);
+  const account = options.account ?? {
+    email: w.user.email,
+    signOut: vi.fn(() => Promise.resolve()),
+  };
+  const { container, unmount } = render(
+    <Settings
+      workspace={w}
+      actions={options.actions ?? actionsFor(repository)}
+      account={account}
+    />,
+  );
   const layout = (name: "desktop" | "phone") => {
     const element = container.querySelector<HTMLElement>(`[data-layout="${name}"]`);
     if (!element) throw new Error(`No ${name} layout`);
     return { element, ...within(element) };
   };
-  return { desktop: layout("desktop"), phone: layout("phone"), unmount, container };
+  return {
+    desktop: layout("desktop"),
+    phone: layout("phone"),
+    unmount,
+    container,
+    repository,
+    account,
+  };
 }
 
 describe("production Settings", () => {
@@ -42,6 +77,7 @@ describe("production Settings", () => {
       "NotificationsNot available yet",
       "Connected accounts",
       "Your data",
+      "Account",
     ]);
   });
 
@@ -53,27 +89,56 @@ describe("production Settings", () => {
     expect(desktop.getByLabelText("Course")).toHaveValue("BSc Computer Science");
     expect(desktop.getByLabelText("Graduating")).toHaveValue("2028");
     expect(desktop.getByLabelText("Time zone")).toHaveValue(workspace.user.timeZone);
+    // The email is the sign-in address: shown, not edited here.
+    expect(desktop.getByLabelText("Email")).toHaveAttribute("readonly");
+    expect(desktop.getByLabelText("Email")).toHaveAccessibleDescription(
+      "You sign in with this address.",
+    );
     // Nothing to save until something changes.
     expect(desktop.queryByRole("button", { name: "Save changes" })).toBeNull();
   });
 
-  it("validates on the field, as help, and saves for this session only", () => {
-    const { desktop } = renderSettings();
-    fireEvent.change(desktop.getByLabelText("Email"), { target: { value: "not an email" } });
+  it("validates on the field, as help, and saves to the account", async () => {
+    const { desktop, repository } = renderSettings();
+    fireEvent.change(desktop.getByLabelText("Graduating"), { target: { value: "20x8" } });
     fireEvent.click(desktop.getByRole("button", { name: "Save changes" }));
-    const email = desktop.getByLabelText("Email");
-    expect(email).toHaveAttribute("aria-invalid", "true");
-    expect(email).toHaveAccessibleDescription("That doesn't look like an email address.");
+    const year = desktop.getByLabelText("Graduating");
+    expect(year).toHaveAttribute("aria-invalid", "true");
+    expect(year).toHaveAccessibleDescription("Use a year, like 2028.");
 
-    fireEvent.change(email, { target: { value: "aisha.r@student.example" } });
+    fireEvent.change(year, { target: { value: "2029" } });
+    fireEvent.change(desktop.getByLabelText("Name"), { target: { value: "Aisha K. Rahman" } });
     fireEvent.click(desktop.getByRole("button", { name: "Save changes" }));
-    expect(desktop.getByRole("status")).toHaveTextContent("Saved for this session.");
+    await waitFor(() => expect(desktop.getByRole("status")).toHaveTextContent("Saved."));
     expect(desktop.queryByRole("button", { name: "Save changes" })).toBeNull();
-    expect(desktop.getByLabelText("Email")).toHaveValue("aisha.r@student.example");
+    expect(desktop.getByLabelText("Graduating")).toHaveValue("2029");
+    // Saved, not just shown.
+    const saved = await repository.user.get();
+    expect(saved.name).toBe("Aisha K. Rahman");
+    expect(saved.education?.graduationYear).toBe(2029);
+    expect(saved.email).toBe(workspace.user.email);
   });
 
-  it("what you're aiming for, from onboarding, changes in place", () => {
-    const { desktop } = renderSettings();
+  it("a save that fails says why, and keeps your edits", async () => {
+    const { desktop } = renderSettings(workspace, {
+      actions: {
+        saveProfile: () => Promise.resolve({ ok: false, problem: "conflict" }),
+        saveGoals: () => Promise.resolve({ ok: false, problem: "conflict" }),
+      },
+    });
+    fireEvent.change(desktop.getByLabelText("Name"), { target: { value: "Aisha K. Rahman" } });
+    fireEvent.click(desktop.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "That changed somewhere else. Reload to see the latest.",
+      ),
+    );
+    expect(desktop.getByLabelText("Name")).toHaveValue("Aisha K. Rahman");
+    expect(desktop.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+  });
+
+  it("what you're aiming for, from onboarding, changes in place", async () => {
+    const { desktop, repository } = renderSettings();
     const goals = within(desktop.getByRole("region", { name: "What you're aiming for" }));
     expect(goals.getByText("Internship")).toBeInTheDocument();
     expect(goals.getByText("London · Manchester · Remote (UK)")).toBeInTheDocument();
@@ -85,10 +150,15 @@ describe("production Settings", () => {
     fireEvent.click(goals.getByRole("button", { name: "Add" }));
     fireEvent.click(goals.getByRole("button", { name: "Remove Remote (UK)" }));
     fireEvent.click(goals.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(desktop.getByRole("status")).toHaveTextContent("Saved."));
     // Saving resets both layouts' forms to what was saved, so read the section afresh.
     const saved = within(desktop.getByRole("region", { name: "What you're aiming for" }));
     expect(saved.getByText("London · Manchester · Edinburgh")).toBeInTheDocument();
-    expect(desktop.getByRole("status")).toHaveTextContent("Saved for this session.");
+    expect((await repository.user.get()).goals?.targetLocations).toEqual([
+      "London",
+      "Manchester",
+      "Edinburgh",
+    ]);
   });
 
   it("keeps at least one of each target", () => {
@@ -117,7 +187,7 @@ describe("production Settings", () => {
     expect(notifications.queryByRole("checkbox")).toBeNull();
 
     const data = within(desktop.getByRole("region", { name: "Your data" }));
-    expect(data.getByText("Arrives with accounts")).toBeInTheDocument();
+    expect(data.getByText("Not available yet")).toBeInTheDocument();
     expect(data.queryByRole("button")).toBeNull();
   });
 
@@ -139,14 +209,29 @@ describe("production Settings", () => {
     expect(phone.getByLabelText("Name")).toHaveValue("Aisha Rahman");
   });
 
-  it("both layouts render, with unique ids, and share what was saved", () => {
+  it("both layouts render, with unique ids, and share what was saved", async () => {
     const { container, desktop, phone } = renderSettings();
     const ids = [...container.querySelectorAll("[id]")].map((el) => el.id);
     expect(new Set(ids).size).toBe(ids.length);
 
     fireEvent.change(desktop.getByLabelText("Name"), { target: { value: "Aisha K. Rahman" } });
     fireEvent.click(desktop.getByRole("button", { name: "Save changes" }));
-    expect(phone.getByLabelText("Name")).toHaveValue("Aisha K. Rahman");
+    await waitFor(() => expect(phone.getByLabelText("Name")).toHaveValue("Aisha K. Rahman"));
+  });
+
+  it("says who is signed in, and signs out from here", () => {
+    const { desktop, account } = renderSettings();
+    const section = within(desktop.getByRole("region", { name: "Account" }));
+    expect(section.getByText(workspace.user.email)).toBeInTheDocument();
+    fireEvent.click(section.getByRole("button", { name: "Sign out" }));
+    expect(account.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("the development seed session has no sign-out, and says it isn't saved for good", () => {
+    const { desktop } = renderSettings(workspace, { account: { email: workspace.user.email } });
+    const section = within(desktop.getByRole("region", { name: "Account" }));
+    expect(section.queryByRole("button", { name: "Sign out" })).toBeNull();
+    expect(section.getByText(/development seed session/)).toBeInTheDocument();
   });
 
   it("has no single-key shortcuts", () => {

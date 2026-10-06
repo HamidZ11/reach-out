@@ -14,7 +14,7 @@ Reachout helps students and recent graduates create real opportunities through t
 | [ROADMAP.md](ROADMAP.md)           | To know which phase you are in and what is out of scope        |
 | [DEVLOG.md](DEVLOG.md)             | To see what happened recently; append an entry when you finish |
 
-Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Production implementation is under way: every production UI surface is built. The app shell, Today, People, Pursuing (`/opportunities`), Outreach, Companies and Settings are approved; Onboarding is implemented from the approved prototype. Actions, Settings changes and onboarding's records are session-only until the first write path, and nothing is ever sent from Reachout. Next: authentication and durable persistence on `feat/auth-persistence`. Gmail and AI come later. Outreach intelligence is future phase 9 (D-022).**
+Current status: **design checkpoint complete. Every surface is APPROVED and FROZEN on desktop and phone, including the mobile navigation (D-024). The C prototype in `src/app/prototypes/_focus/` is the authoritative design reference. Every production UI surface is built. The app shell, Today, People, Pursuing (`/opportunities`), Outreach, Companies and Settings are approved; Onboarding is implemented from the approved prototype. Accounts and persistence are built (phase 6, verified locally, not deployed): email-link sign-in through Supabase Auth (D-026), workspace-scoped Postgres with RLS (D-025), writes only through database functions (D-027), and durable Undo (D-028). The sign-in page, the error page and the Settings additions await visual review. Nothing is ever sent from Reachout. Next: Gmail on `feat/gmail-launch`. AI comes later; outreach intelligence is future phase 9 (D-022).**
 
 ## Workflow
 
@@ -59,7 +59,13 @@ Current status: **design checkpoint complete. Every surface is APPROVED and FROZ
 - **Preserve the repository abstraction.** Product code reads data only through `Repository`. Only `src/server/repository.ts` chooses an implementation. Features and routes never import `@/data/seed` (lint-enforced).
 - **Keep domain rules out of React components.** Rules live in `src/domain/` as pure functions with tests; components render their results.
 - Domain code never reads the clock; pass `today` and `at` in.
-- Every data read goes through `getRepository()`, and therefore through `requireSession()`. Never bypass it, and never pretend authentication is operational when it is not.
+- Every read and write goes through `getRepository()`, and therefore through `requireSession()`. Never bypass it. Server Actions take the user from the session, never from their input.
+- **Supabase stays behind the boundary.**
+  - Only `src/data/supabase/`, `src/server/` and `src/proxy.ts` import it, and there is no browser Supabase client.
+  - The app never uses a service key.
+  - Writes go only through the database workflow functions (D-027). A new kind of write needs a migration (function, grants), domain rules in TypeScript, and database tests.
+  - Never weaken RLS, grants or the `reachout_writer` role to make something work.
+- **Schema changes are migrations** (`pnpm exec supabase migration new`), never dashboard edits, and never edits to a deployed migration. Regenerate types with `pnpm db:types`.
 - Validate external input (forms, params, provider payloads) with Zod before it reaches the domain.
 - Use the bundled Next.js docs: this Next.js version differs from older training data (see `@AGENTS.md` below).
 
@@ -80,6 +86,9 @@ Current status: **design checkpoint complete. Every surface is APPROVED and FROZ
 - Test behaviour that could plausibly break, especially Today derivation and domain rules. Don't write tests that restate types.
 - Build fixtures with `src/test/builders.ts` (validated by the real schemas). Use the seed repository for loader tests.
 - Playwright arrives in phase 2. Don't add browser tests or tools before then.
+- **Database behaviour is proven against the real database.**
+  - RLS, grants and the workflow functions are tested in `pnpm test:db` (the Repository contract, two-account isolation) and `pnpm db:test` (pgTAP), against the local Supabase.
+  - Mocks never prove isolation. If the local stack can't run, say that database checks were not run.
 
 ### Reporting
 
@@ -89,9 +98,14 @@ Current status: **design checkpoint complete. Every surface is APPROVED and FROZ
 ## Commands
 
 ```sh
-pnpm dev           # local dev server (runs as the seed user)
+pnpm dev           # local dev server (needs .env.local, or REACHOUT_DEV_SEED=true for the seed user)
 pnpm check         # format:check → lint → typecheck → test → build
 pnpm test:watch    # Vitest in watch mode
+pnpm db:start      # local Supabase (Docker); prints the URL and keys for .env.local
+pnpm test:db       # Repository contract + isolation against the local Supabase
+pnpm db:test       # pgTAP access checks inside Postgres
+pnpm db:reset      # re-apply every migration to a fresh local database (wipes local data)
+pnpm db:types      # regenerate src/data/supabase/database.types.ts
 pnpm format        # apply Prettier
 ```
 

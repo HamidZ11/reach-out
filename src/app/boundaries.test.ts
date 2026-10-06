@@ -9,9 +9,10 @@ import { describe, expect, it } from "vitest";
  */
 
 const root = join(process.cwd(), "src");
-const PRODUCTION = ["features", "components", "server", "app"];
+const PRODUCTION = ["features", "components", "server", "app", "data", "proxy.ts"];
 
 function sources(dir: string): string[] {
+  if (statSync(dir).isFile()) return [dir];
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) return name === "prototypes" ? [] : sources(path);
@@ -49,13 +50,39 @@ describe("production boundaries", () => {
 
   it("features, components and routes never import seed data", () => {
     const offenders = files
-      .filter((f) => !relative(root, f).startsWith("server"))
+      .filter((f) => !/^(server|data)\//.test(relative(root, f)))
       .filter((f) => imports(f).some((i) => i.includes("data/seed")));
     expect(offenders.map((f) => relative(root, f))).toEqual([]);
   });
 
   it("nothing in production imports the design prototypes", () => {
     const offenders = files.filter((f) => imports(f).some((i) => i.includes("prototypes")));
+    expect(offenders.map((f) => relative(root, f))).toEqual([]);
+  });
+
+  it("production routes pass Server Actions, never the session-only local actions", () => {
+    const offenders = files
+      .filter((f) => relative(root, f).startsWith("app"))
+      .filter((f) =>
+        imports(f).some((i) => i.includes("local-actions") || i.includes("data/memory")),
+      );
+    expect(offenders.map((f) => relative(root, f))).toEqual([]);
+  });
+
+  it("only the data and server layers talk to Supabase", () => {
+    const offenders = files
+      .filter((f) => !/^(data|server)\//.test(relative(root, f)))
+      .filter((f) => relative(root, f) !== "proxy.ts")
+      .filter((f) => imports(f).some((i) => i.startsWith("@supabase/")))
+      // The confirm route only names Supabase's link types.
+      .filter((f) => !relative(root, f).endsWith(join("auth", "confirm", "route.ts")));
+    expect(offenders.map((f) => relative(root, f))).toEqual([]);
+  });
+
+  it("the service key is never read by application code", () => {
+    const offenders = files.filter((f) =>
+      /SERVICE_ROLE|SECRET_KEY|service_role/.test(readFileSync(f, "utf8")),
+    );
     expect(offenders.map((f) => relative(root, f))).toEqual([]);
   });
 });

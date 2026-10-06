@@ -1,9 +1,13 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { createMemoryRepository } from "@/data/memory/memory-repository";
 import { calendarDate, instant } from "@/domain/time";
+import { actionsFor } from "@/features/workspace/local-actions";
 import { buildUser } from "@/test/builders";
 import { syncSearchParamsWithHistory, visit } from "@/test/navigation";
 import type { OnboardingBase } from "./build";
+import type { CompleteOnboarding } from "./complete";
+import { completeOnboardingStep, OnboardingInput } from "./complete";
 import { Onboarding } from "./onboarding";
 
 vi.mock("next/navigation", () => import("@/test/navigation"));
@@ -23,6 +27,34 @@ beforeAll(() => {
 afterEach(() => {
   vi.useRealTimers();
 });
+
+/**
+ * Onboarding over an in-memory repository holding one fresh account, through
+ * the same completion step the Server Action runs.
+ */
+function renderOnboarding(complete?: CompleteOnboarding) {
+  const repository = createMemoryRepository(
+    {
+      users: [base.user],
+      companies: [],
+      people: [],
+      opportunities: [],
+      interactions: [],
+      drafts: [],
+      nextActions: [],
+      sourceFacts: [],
+      interpretations: [],
+    },
+    base.user.id,
+  );
+  const now = () => new Date(base.now);
+  const save: CompleteOnboarding = (input) =>
+    completeOnboardingStep(repository, OnboardingInput.parse(input), now());
+  const view = render(
+    <Onboarding base={base} complete={complete ?? save} actions={actionsFor(repository, now)} />,
+  );
+  return { repository, ...view };
+}
 
 const question = () => screen.getByRole("heading", { level: 1 }).textContent;
 const progress = () => screen.getByRole("progressbar", { name: "Setup" });
@@ -57,7 +89,7 @@ function answerOpportunityAndPerson() {
 
 describe("production onboarding", () => {
   it("asks one question per step, seven in all, starting with the goal", () => {
-    render(<Onboarding base={base} />);
+    renderOnboarding();
     expect(question()).toBe("What are you trying to break into?");
     expect(progress()).toHaveAttribute("aria-valuetext", "Step 1 of 7: Goal");
     // Only the top-bar Back shows on the first step, and it can't go anywhere yet.
@@ -71,7 +103,7 @@ describe("production onboarding", () => {
   });
 
   it("shows problems only after Continue, on the field, as help", () => {
-    render(<Onboarding base={base} />);
+    renderOnboarding();
     expect(screen.queryByText("Choose the one you're aiming for first.")).toBeNull();
     fireEvent.click(continueButton());
     expect(screen.getByText("Choose the one you're aiming for first.")).toBeInTheDocument();
@@ -79,7 +111,7 @@ describe("production onboarding", () => {
   });
 
   it("the single-choice first step moves on by itself; the rest wait for Continue", () => {
-    render(<Onboarding base={base} />);
+    renderOnboarding();
     vi.useFakeTimers();
     fireEvent.click(screen.getByRole("radio", { name: /^Internship/ }));
     act(() => vi.advanceTimersByTime(300));
@@ -96,7 +128,7 @@ describe("production onboarding", () => {
   });
 
   it("adds your own choice, and Back keeps what you answered", () => {
-    render(<Onboarding base={base} />);
+    renderOnboarding();
     answerGoals();
     expect(question()).toBe("What's one opportunity you're already looking at?");
 
@@ -119,7 +151,7 @@ describe("production onboarding", () => {
   });
 
   it("the opportunity and the person: required fields named, the rest optional", () => {
-    render(<Onboarding base={base} />);
+    renderOnboarding();
     answerGoals();
     fireEvent.click(continueButton());
     expect(screen.getByLabelText("Role or programme")).toHaveAccessibleDescription(
@@ -135,40 +167,66 @@ describe("production onboarding", () => {
     expect(screen.getByRole("button", { name: /^Open Today/ })).toBeInTheDocument();
   });
 
-  it("finishing opens the approved Today on what you just set up, for this session", () => {
-    render(<Onboarding base={base} />);
+  it("finishing saves the records, then opens the approved Today on what was saved", async () => {
+    const { repository } = renderOnboarding();
     answerGoals();
     answerOpportunityAndPerson();
     fireEvent.click(screen.getByRole("radio", { name: /^Send Priya a message/ }));
     fireEvent.click(screen.getByRole("button", { name: /^Open Today/ }));
 
-    const [desktop] = document.querySelectorAll<HTMLElement>('[data-layout="desktop"]');
+    const [desktop] = await waitFor(() => {
+      const found = document.querySelectorAll<HTMLElement>('[data-layout="desktop"]');
+      expect(found).toHaveLength(1);
+      return found;
+    });
     const today = within(desktop as HTMLElement);
     expect(today.getByRole("heading", { level: 1, name: "Today" })).toBeInTheDocument();
     expect(
       today.getByRole("heading", { level: 2, name: "Send Priya a message" }),
     ).toBeInTheDocument();
-    expect(today.getByRole("status")).toHaveTextContent(
-      "You're set up for this session. This is your Today.",
-    );
+    expect(today.getByRole("status")).toHaveTextContent("You're set up. This is your Today.");
     // Inside the app shell, with Today marked.
     const [rail] = screen.getAllByRole("navigation", { name: "Sections" });
     expect(within(rail as HTMLElement).getByRole("link", { name: /^Today/ })).toHaveAttribute(
       "aria-current",
       "page",
     );
+
+    // Saved, not just shown: the repository holds the account's first records.
+    const user = await repository.user.get();
+    expect(user.onboardingCompletedAt).toBe(base.now);
+    expect(user.goals?.targetLocations).toEqual(["London"]);
+    expect((await repository.people.list()).map((p) => p.name)).toEqual(["Priya Natarajan"]);
+    expect((await repository.nextActions.list()).map((a) => a.title)).toEqual([
+      "Send Priya a message",
+    ]);
   });
 
-  it("nothing is saved: a fresh start begins again at the first question", () => {
-    const { unmount } = render(<Onboarding base={base} />);
+  it("if saving fails, you stay on the last step, with your answers, and it says so", async () => {
+    renderOnboarding(() => Promise.resolve({ ok: false, problem: "unavailable" }));
+    answerGoals();
+    answerOpportunityAndPerson();
+    fireEvent.click(screen.getByRole("radio", { name: /^Send Priya a message/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Open Today/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "We couldn't save your setup. Check your connection and try again.",
+    );
+    expect(question()).toBe("What should you do next?");
+    expect(screen.getByRole("radio", { name: /^Send Priya a message/ })).toBeChecked();
+    expect(screen.queryByRole("heading", { level: 1, name: "Today" })).toBeNull();
+  });
+
+  it("leaving before the end saves nothing: a fresh start begins at the first question", async () => {
+    const { unmount, repository } = renderOnboarding();
     answerGoals();
     unmount();
-    render(<Onboarding base={base} />);
+    expect((await repository.user.get()).goals).toBeUndefined();
+    renderOnboarding();
     expect(question()).toBe("What are you trying to break into?");
   });
 
   it("has no single-key shortcuts", () => {
-    render(<Onboarding base={base} />);
+    renderOnboarding();
     for (const key of ["j", "k", "n", "b", "ArrowRight", "ArrowLeft"]) {
       fireEvent.keyDown(document, { key });
     }

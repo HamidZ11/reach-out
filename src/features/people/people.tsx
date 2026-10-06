@@ -2,6 +2,7 @@
 
 import { useAnnouncer } from "@/features/today/item-actions";
 import t from "@/features/today/today.module.css";
+import type { WorkspaceActions } from "@/features/workspace/outcome";
 import type { Workspace } from "@/features/workspace/records";
 import { useWorkspace } from "@/features/workspace/use-workspace";
 import p from "./people.module.css";
@@ -16,11 +17,17 @@ import { usePersonInUrl } from "./selection";
  * one session, one announcer and one selected person — the one in the URL —
  * so acting in either is reflected in both.
  *
- * Actions are Today's, applied by the real domain rules to this session only.
- * Nothing is saved yet: the Repository gains writes in ROADMAP phase 2.
+ * Actions are Today's: the real domain rules, saved through `actions`.
  */
-export function People({ workspace }: { workspace: Workspace }) {
-  const day = useWorkspace(workspace);
+export function People({
+  workspace,
+  actions,
+}: {
+  workspace: Workspace;
+  /** Server Actions in production; see WorkspaceActions. */
+  actions: WorkspaceActions;
+}) {
+  const day = useWorkspace(workspace, actions);
   const announcer = useAnnouncer(day);
   const selection = usePersonInUrl(day);
   return (

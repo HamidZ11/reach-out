@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createSeedDataset, SEED_USER_ID } from "@/data/seed/dataset";
 import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate } from "@/domain/time";
 import type { Workspace } from "@/features/workspace/records";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
+import { createLocalActions } from "@/features/workspace/local-actions";
 import { Today } from "./today";
 
 /**
@@ -22,7 +23,9 @@ beforeAll(async () => {
 });
 
 function renderToday() {
-  const { container } = render(<Today workspace={workspace} />);
+  const { container } = render(
+    <Today workspace={workspace} actions={createLocalActions(workspace)} />,
+  );
   const layout = (name: "desktop" | "phone") => {
     const element = container.querySelector<HTMLElement>(`[data-layout="${name}"]`);
     if (!element) throw new Error(`No ${name} layout`);
@@ -101,12 +104,14 @@ describe("production Today", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("complete: the item leaves Today in both layouts, with an answer and Undo", () => {
+  it("complete: once saved, the item leaves Today in both layouts, with an answer and Undo", async () => {
     const { desktop, phone } = renderToday();
     fireEvent.click(desktop.getByRole("button", { name: "Already done" }));
 
-    expect(desktop.getByRole("status")).toHaveTextContent(
-      "Done: Follow up with Grace about interview timing.",
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "Done: Follow up with Grace about interview timing.",
+      ),
     );
     expect(
       desktop.getByRole("heading", { level: 2, name: "Daniel Mensah replied" }),
@@ -118,17 +123,41 @@ describe("production Today", () => {
 
     fireEvent.click(desktop.getByRole("button", { name: "Undo" }));
     expect(
+      await desktop.findByRole("heading", {
+        level: 2,
+        name: "Follow up with Grace about interview timing",
+      }),
+    ).toBeInTheDocument();
+    expect(desktop.getByRole("status")).toHaveTextContent("Undone.");
+  });
+
+  it("a change that can't be saved says so, and nothing moves", async () => {
+    const failing = createLocalActions(workspace);
+    failing.completeNextAction = () => Promise.resolve({ ok: false, problem: "unavailable" });
+    const { container } = render(<Today workspace={workspace} actions={failing} />);
+    const desktop = within(container.querySelector<HTMLElement>('[data-layout="desktop"]')!);
+    fireEvent.click(desktop.getByRole("button", { name: "Already done" }));
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "Couldn't save. Check your connection and try again.",
+      ),
+    );
+    expect(
       desktop.getByRole("heading", {
         level: 2,
         name: "Follow up with Grace about interview timing",
       }),
     ).toBeInTheDocument();
+    // A failure has nothing to undo.
+    expect(desktop.queryByRole("button", { name: "Undo" })).toBeNull();
   });
 
-  it("snooze: the domain rule moves the follow-up out of first place", () => {
+  it("snooze: the domain rule moves the follow-up out of first place", async () => {
     const { desktop } = renderToday();
     fireEvent.click(desktop.getByRole("button", { name: /^Snooze to / }));
-    expect(desktop.getByRole("status")).toHaveTextContent(/^Snoozed to Tue 6 Oct\./);
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(/^Snoozed to Tue 6 Oct\./),
+    );
     expect(
       desktop.getByRole("heading", { level: 2, name: "Daniel Mensah replied" }),
     ).toBeInTheDocument();
@@ -164,7 +193,7 @@ describe("production Today", () => {
     expect(desktop.queryByText(/move ·|snooze ·/)).toBeNull();
   });
 
-  it("approve: a draft waiting for approval becomes ready to send", () => {
+  it("approve: a draft waiting for approval becomes ready to send", async () => {
     const { desktop } = renderToday();
     const panel = within(desktop.getByRole("complementary", { name: "Your day" }));
     fireEvent.click(panel.getByRole("button", { name: /Hannah Lindqvist.*Draft waiting/ }));
@@ -174,7 +203,7 @@ describe("production Today", () => {
 
     fireEvent.click(desktop.getByRole("button", { name: "Approve" }));
     expect(
-      desktop.getByRole("heading", { level: 2, name: "Send your email to Hannah" }),
+      await desktop.findByRole("heading", { level: 2, name: "Send your email to Hannah" }),
     ).toBeInTheDocument();
     expect(desktop.getByRole("status")).toHaveTextContent(/^Approved/);
   });

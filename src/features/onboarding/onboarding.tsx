@@ -1,6 +1,7 @@
 "use client";
 
 import type { KeyboardEvent, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { shortDay } from "@/components/dates";
@@ -14,10 +15,12 @@ import { DateTile } from "@/features/today/date-tile";
 import { Today } from "@/features/today/today";
 import t from "@/features/today/today.module.css";
 import { OBJECTIVE_OPTIONS } from "@/features/workspace/goals";
+import type { WorkspaceActions } from "@/features/workspace/outcome";
+import { problemMessage } from "@/features/workspace/outcome";
 import type { Workspace } from "@/features/workspace/records";
 import { firstName } from "@/features/workspace/records";
 import type { OnboardingBase } from "./build";
-import { buildWorkspace } from "./build";
+import type { CompleteOnboarding, OnboardingOutcome } from "./complete";
 import s from "./onboarding.module.css";
 import type { Answers, Problem, StepId } from "./questions";
 import {
@@ -36,15 +39,12 @@ import { useOnboarding } from "./use-onboarding";
 
 /**
  * Onboarding: one decision per step on the same white sheet as the app, with
- * the workspace it creates filling in beside it. Finishing builds real domain
- * records and opens the approved Today on them.
- *
- * Those records last for this session only, and the arrival says so: the
- * Repository gains writes with accounts. Leaving Today shows the Repository's
- * records again.
+ * the workspace it creates filling in beside it. Finishing saves real domain
+ * records (on the server, all at once) and only then opens the approved Today
+ * on what was saved.
  */
 
-const WELCOME = "You're set up for this session. This is your Today.";
+const WELCOME = "You're set up. This is your Today.";
 
 type ListField = "roles" | "sectors" | "locations";
 
@@ -640,7 +640,16 @@ function Preview({ flow, today }: { flow: Flow; today: CalendarDate }) {
 
 /* ——— The flow ——— */
 
-function Setup({ today, onDone }: { today: CalendarDate; onDone: (answers: Answers) => void }) {
+function Setup({
+  today,
+  onDone,
+}: {
+  today: CalendarDate;
+  /** Saves the answers. Resolves with why it couldn't, or nothing once saved. */
+  onDone: (answers: Answers) => Promise<string | undefined>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [saveProblem, setSaveProblem] = useState<string>();
   const flow = useOnboarding();
   const [tried, setTried] = useState<StepId | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -692,8 +701,15 @@ function Setup({ today, onDone }: { today: CalendarDate; onDone: (answers: Answe
       return;
     }
     setTried(null);
-    if (last) onDone(flow.answers);
-    else flow.next();
+    if (last) {
+      if (saving) return;
+      setSaving(true);
+      setSaveProblem(undefined);
+      void onDone(flow.answers).then((problem) => {
+        setSaving(false);
+        setSaveProblem(problem);
+      });
+    } else flow.next();
   };
 
   const back = () => {
@@ -771,6 +787,12 @@ function Setup({ today, onDone }: { today: CalendarDate; onDone: (answers: Answe
                     problems={problems}
                     onAutoAdvance={autoAdvance}
                   />
+                  {last && saveProblem && (
+                    <p className={s.message} role="alert">
+                      <span className={t.dot} data-tone="now" aria-hidden="true" />
+                      {saveProblem}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -787,7 +809,11 @@ function Setup({ today, onDone }: { today: CalendarDate; onDone: (answers: Answe
                   or press <kbd className={s.kbd}>Enter</kbd>
                 </span>
               )}
-              <button type="submit" className={`${t.primary} ${s.continue}`}>
+              <button
+                type="submit"
+                className={`${t.primary} ${s.continue}`}
+                disabled={last && saving}
+              >
                 {last ? "Open Today" : "Continue"}
                 <Icon.ArrowRight size={16} weight={2} />
               </button>
@@ -803,26 +829,68 @@ function Setup({ today, onDone }: { today: CalendarDate; onDone: (answers: Answe
 
 /* ——— Arrival: the approved Today, already holding what you just set up ——— */
 
-function Arrival({ workspace }: { workspace: Workspace }) {
+function Arrival({ workspace, actions }: { workspace: Workspace; actions: WorkspaceActions }) {
   const attention = deriveToday(workspace).length > 0;
   return (
     <div className={s.arrive}>
       <AppShell userName={workspace.user.name} attention={attention} current={SECTIONS.today.href}>
-        <Today workspace={workspace} welcome={WELCOME} />
+        <Today workspace={workspace} actions={actions} welcome={WELCOME} />
       </AppShell>
     </div>
   );
 }
 
+/** The browser's own time zone, so Today starts at the user's midnight. */
+function browserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "UTC";
+  }
+}
+
 /**
  * Production onboarding, as approved: seven questions, then Today. It starts
  * from the signed-in user (read on the server through the auth boundary).
+ * Finishing saves everything on the server first; the Today that opens is
+ * read back from what was saved.
  */
-export function Onboarding({ base }: { base: OnboardingBase }) {
+export function Onboarding({
+  base,
+  complete,
+  actions,
+}: {
+  base: OnboardingBase;
+  /** Server Action in production: saves the answers as records, once. */
+  complete: CompleteOnboarding;
+  /** Today's actions, for the Today onboarding opens into. */
+  actions: WorkspaceActions;
+}) {
+  const router = useRouter();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const finish = async (answers: Answers) => {
+    let result: OnboardingOutcome;
+    try {
+      result = await complete({ answers, timeZone: browserTimeZone() });
+    } catch {
+      result = { ok: false, problem: "unavailable" };
+    }
+    if (result.ok) {
+      setWorkspace(result.workspace);
+      return undefined;
+    }
+    // Already set up (another tab, or a second click): Today has it.
+    if (result.problem === "onboarding_complete") {
+      router.replace(SECTIONS.today.href);
+      return undefined;
+    }
+    return result.problem === "unavailable"
+      ? "We couldn't save your setup. Check your connection and try again."
+      : problemMessage(result.problem);
+  };
   return workspace ? (
-    <Arrival workspace={workspace} />
+    <Arrival workspace={workspace} actions={actions} />
   ) : (
-    <Setup today={base.today} onDone={(answers) => setWorkspace(buildWorkspace(answers, base))} />
+    <Setup today={base.today} onDone={finish} />
   );
 }

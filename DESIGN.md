@@ -18,6 +18,17 @@ Visual-system exploration is **complete**. Every surface is approved on desktop 
 | Companies  | **Approved** | **Approved** |
 | Settings   | **Approved** | **Approved** |
 
+**Added with accounts (phase 6), awaiting the human's visual review:**
+
+- **Sign in, and the "can't load" page:** both in onboarding's frame, with no new colours, type or components. Sign in is one question, one email field and one action, then "Check your email".
+- **Settings:**
+  - the email is shown read-only, because it is the sign-in address;
+  - an "Account" row says who is signed in, with Sign out;
+  - "Delete your account" now says "Not available yet";
+  - saving says "Saved." instead of "Saved for this session.".
+- **Onboarding:** arriving in Today says "You're set up. This is your Today.". If saving fails, the last step says so and keeps your answers.
+- **Actions:** each one is announced once it is saved. A failure is announced in words, without Undo.
+
 ## Design freeze
 
 Approved surfaces are not redesigned during implementation. A change needs one of these:

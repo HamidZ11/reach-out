@@ -1,10 +1,12 @@
-import { act, fireEvent, render, within } from "@testing-library/react";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSeedDataset, SEED_USER_ID } from "@/data/seed/dataset";
 import { createSeedRepository } from "@/data/seed/seed-repository";
+import type { Repository } from "@/data/repository";
 import { calendarDate } from "@/domain/time";
-import type { Workspace } from "@/features/workspace/records";
+import { createLocalActions } from "@/features/workspace/local-actions";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
+import type { Workspace } from "@/features/workspace/records";
 import { currentPath, syncSearchParamsWithHistory, visit } from "@/test/navigation";
 import { Outreach } from "./outreach";
 
@@ -25,10 +27,12 @@ const personId = (name: string) => {
 const opportunityOf = (name: string) =>
   workspace.opportunities.find((o) => o.personIds.includes(personId(name)));
 
+const ANCHOR = calendarDate("2026-10-05");
+const NOW = new Date("2026-10-05T09:00:00Z");
+
 beforeAll(async () => {
-  const anchor = calendarDate("2026-10-05");
-  const repository = createSeedRepository(createSeedDataset(anchor), SEED_USER_ID);
-  workspace = await loadWorkspace(repository, new Date("2026-10-05T09:00:00Z"));
+  const repository = createSeedRepository(createSeedDataset(ANCHOR), SEED_USER_ID);
+  workspace = await loadWorkspace(repository, NOW);
   // jsdom does not lay out, so it has no scrolling.
   Element.prototype.scrollIntoView = vi.fn();
   syncSearchParamsWithHistory();
@@ -38,8 +42,10 @@ beforeEach(() => {
   visit("/outreach");
 });
 
-function renderOutreach() {
-  const { container, unmount } = render(<Outreach workspace={workspace} />);
+function renderOutreach(snapshot: Workspace = workspace, repository?: Repository) {
+  const { container, unmount } = render(
+    <Outreach workspace={snapshot} actions={createLocalActions(snapshot, repository)} />,
+  );
   const layout = (name: "desktop" | "phone") => {
     const element = container.querySelector<HTMLElement>(`[data-layout="${name}"]`);
     if (!element) throw new Error(`No ${name} layout`);
@@ -156,7 +162,7 @@ describe("production Outreach — approval workflow", () => {
     expect(hannah.queryByRole("button", { name: "Mark as sent" })).toBeNull();
   });
 
-  it("approving moves it to ready to send; editing it sends it back for approval", () => {
+  it("approving moves it to ready to send; editing it sends it back for approval", async () => {
     const { desktop } = renderOutreach();
     const hannahIn = (title: RegExp) =>
       within(section(desktop, title).getByText("Hannah Lindqvist").closest("li") as HTMLElement);
@@ -164,8 +170,10 @@ describe("production Outreach — approval workflow", () => {
     fireEvent.click(
       hannahIn(/^Waiting for your approval/).getByRole("button", { name: "Approve" }),
     );
-    expect(desktop.getByRole("status")).toHaveTextContent(
-      "Approved. Send it yourself, then mark it as sent.",
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "Approved. Send it yourself, then mark it as sent.",
+      ),
     );
     const ready = hannahIn(/^Approved, ready to send/);
     // The track moved groups; focus follows Hannah instead of falling to the page.
@@ -180,33 +188,40 @@ describe("production Outreach — approval workflow", () => {
       target: { value: "Hi Hannah — a shorter note about your talk on local-first tools." },
     });
     fireEvent.click(ready.getByRole("button", { name: "Save changes" }));
-    expect(desktop.getByRole("status")).toHaveTextContent(
-      "Draft updated. It needs your approval again.",
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "Draft updated. It needs your approval again.",
+      ),
     );
     const again = hannahIn(/^Waiting for your approval/);
     expect(again.getByText(/a shorter note about your talk/)).toBeInTheDocument();
     expect(again.queryByRole("button", { name: "Mark as sent" })).toBeNull();
   });
 
-  it("mark as sent records what you sent yourself, for this session only", () => {
-    const { desktop, unmount } = renderOutreach();
+  it("mark as sent records what you sent yourself, and a reload still has it", async () => {
+    const repository = createSeedRepository(createSeedDataset(ANCHOR), SEED_USER_ID);
+    const saved = await loadWorkspace(repository, NOW, { research: true });
+    const { desktop, unmount } = renderOutreach(saved, repository);
     const ready = section(desktop, /^Approved, ready to send/);
     const sofia = within(ready.getByText("Sofia Petrova").closest("li") as HTMLElement);
     fireEvent.click(sofia.getByRole("button", { name: "Mark as sent" }));
-    expect(desktop.getByRole("status")).toHaveTextContent(
-      "Marked as sent to Sofia Petrova. It's in your history.",
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "Marked as sent to Sofia Petrova. It's in your history.",
+      ),
     );
     expect(desktop.queryByRole("region", { name: /^Approved, ready to send/ })).toBeNull();
     expect(names(desktop.getByRole("region", { name: /^Sent, waiting to hear/ }))).toContain(
       "Sofia Petrova",
     );
 
-    // Nothing was saved or sent: a fresh page has the approved draft again.
+    // Nothing was sent from Reachout, but it was saved: a fresh read has it.
     unmount();
-    const again = renderOutreach().desktop;
-    expect(names(again.getByRole("region", { name: /^Approved, ready to send/ }))).toEqual([
+    const again = renderOutreach(await loadWorkspace(repository, NOW, { research: true })).desktop;
+    expect(again.queryByRole("region", { name: /^Approved, ready to send/ })).toBeNull();
+    expect(names(again.getByRole("region", { name: /^Sent, waiting to hear/ }))).toContain(
       "Sofia Petrova",
-    ]);
+    );
   });
 });
 
@@ -292,12 +307,14 @@ describe("production Outreach — phone", () => {
     expect(phone.getByRole("button", { name: /^Hannah Lindqvist/ })).toHaveFocus();
   });
 
-  it("approving on a phone enables Mark as sent, in the same card", () => {
+  it("approving on a phone enables Mark as sent, in the same card", async () => {
     visit(`/outreach?person=${personId("Hannah Lindqvist")}`);
     const { phone } = renderOutreach();
     const todo = () => within(phone.getByRole("region", { name: "What to do" }));
     fireEvent.click(todo().getByRole("button", { name: "Approve" }));
-    expect(todo().getByRole("article", { name: "Send your email to Hannah" })).toBeInTheDocument();
+    expect(
+      await todo().findByRole("article", { name: "Send your email to Hannah" }),
+    ).toBeInTheDocument();
     expect(todo().getByRole("button", { name: "Mark as sent" })).toBeInTheDocument();
   });
 

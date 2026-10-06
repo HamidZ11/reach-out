@@ -7,12 +7,28 @@ import * as Icon from "@/components/icons";
 import type { Person } from "@/domain/person";
 import type { ItemContext } from "@/features/workspace/records";
 import { channelNoun, firstName } from "@/features/workspace/records";
-import type { WorkspaceState } from "@/features/workspace/use-workspace";
+import type { ActResult, WorkspaceState } from "@/features/workspace/use-workspace";
 import s from "./today.module.css";
 import type { DraftText } from "./wording";
 import { channelFor, initialDraft } from "./wording";
 
-export type Announce = (message: string) => void;
+/** Says how an action went. Failures aren't undoable: there's nothing to undo. */
+export type Announce = (message: string, options?: { undoable?: boolean }) => void;
+
+/** Announces a saved change once it is saved, or why it wasn't. */
+export function announceResult(
+  result: ActResult,
+  announce: Announce,
+  success: string,
+  onSaved?: () => void,
+) {
+  if (result.ok) {
+    announce(success);
+    onSaved?.();
+  } else if (!result.ignored) {
+    announce(result.message, { undoable: false });
+  }
+}
 
 export type ActionSpec = {
   id: string;
@@ -24,8 +40,8 @@ export type ActionSpec = {
 
 /**
  * One vocabulary of verbs for an attention item. Every action runs a real
- * domain rule (through the workspace session) and announces its outcome.
- * Nothing is sent from Reachout: "Mark as sent" records what you sent yourself.
+ * domain rule, is saved, and then announces its outcome. Nothing is sent from
+ * Reachout: "Mark as sent" records what you sent yourself.
  */
 export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: Announce) {
   const { item, person, action, draft, opportunity } = ctx;
@@ -53,8 +69,9 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
           label: `Snooze to ${snoozeTo}`,
           icon: <Icon.Moon size={15} weight={2} />,
           run: () => {
-            day.snooze(action.id);
-            announce(`Snoozed to ${snoozeTo}.`);
+            void day
+              .snooze(action.id)
+              .then((r) => announceResult(r, announce, `Snoozed to ${snoozeTo}.`));
           },
         }
       : undefined;
@@ -65,8 +82,9 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
           label,
           icon: <Icon.Check size={16} weight={2} />,
           run: () => {
-            day.complete(action.id);
-            announce(`Done: ${action.title}.`);
+            void day
+              .complete(action.id)
+              .then((r) => announceResult(r, announce, `Done: ${action.title}.`));
           },
         }
       : undefined;
@@ -109,8 +127,11 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
             label: "Approve",
             icon: <Icon.Check size={16} weight={2} />,
             run: () => {
-              day.approve(draft.id);
-              announce("Approved. Send it yourself, then mark it as sent.");
+              void day
+                .approve(draft.id)
+                .then((r) =>
+                  announceResult(r, announce, "Approved. Send it yourself, then mark it as sent."),
+                );
             },
           }
         : undefined;
@@ -123,8 +144,15 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
             label: "Mark as sent",
             icon: <Icon.Send size={16} weight={2} />,
             run: () => {
-              day.markSent(draft.id);
-              announce(`Marked as sent to ${person?.name ?? "them"}. It's in your history.`);
+              void day
+                .markSent(draft.id)
+                .then((r) =>
+                  announceResult(
+                    r,
+                    announce,
+                    `Marked as sent to ${person?.name ?? "them"}. It's in your history.`,
+                  ),
+                );
             },
           }
         : undefined;
@@ -164,23 +192,39 @@ export function useItemActions(ctx: ItemContext, day: WorkspaceState, announce: 
     }
   }
 
+  // The composer closes only once the draft is saved; if saving fails, what
+  // you wrote stays open in front of you.
   const save = () => {
     if (!person) return;
     if (mode === "edit" && draft) {
-      day.revise(draft.id, text.body);
-      announce("Draft updated. It needs your approval again.");
+      void day
+        .revise(draft.id, text.body)
+        .then((r) =>
+          announceResult(r, announce, "Draft updated. It needs your approval again.", () =>
+            setMode(null),
+          ),
+        );
     } else {
-      day.saveDraft({
-        personId: person.id,
-        opportunityId: opportunity?.id,
-        channel,
-        subject: text.subject,
-        body: text.body,
-      });
-      announce(`Draft to ${first} saved. It's waiting for your approval.`);
-      setText({ subject: "", body: "" });
+      void day
+        .saveDraft({
+          personId: person.id,
+          opportunityId: opportunity?.id,
+          channel,
+          subject: text.subject,
+          body: text.body,
+        })
+        .then((r) =>
+          announceResult(
+            r,
+            announce,
+            `Draft to ${first} saved. It's waiting for your approval.`,
+            () => {
+              setText({ subject: "", body: "" });
+              setMode(null);
+            },
+          ),
+        );
     }
-    setMode(null);
   };
 
   const composer =
@@ -240,9 +284,12 @@ export function ActionButton({
 }
 
 /** A polite status line with Undo, so every action ends with an answer. */
-export function useAnnouncer(day: WorkspaceState, initial?: string) {
-  const [toast, setToast] = useState<{ text: string; n: number } | null>(
-    initial ? { text: initial, n: 1 } : null,
+export function useAnnouncer(
+  day: Pick<WorkspaceState, "canUndo" | "undo"> | undefined,
+  initial?: string,
+) {
+  const [toast, setToast] = useState<{ text: string; n: number; undoable: boolean } | null>(
+    initial ? { text: initial, n: 1, undoable: false } : null,
   );
   const [acted, setActed] = useState(false);
 
@@ -252,9 +299,9 @@ export function useAnnouncer(day: WorkspaceState, initial?: string) {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const announce: Announce = (text) => {
+  const announce: Announce = (text, { undoable = true } = {}) => {
     setActed(true);
-    setToast((t) => ({ text, n: (t?.n ?? 0) + 1 }));
+    setToast((t) => ({ text, n: (t?.n ?? 0) + 1, undoable }));
   };
 
   const view = (
@@ -262,12 +309,16 @@ export function useAnnouncer(day: WorkspaceState, initial?: string) {
       {toast && (
         <div key={toast.n} className={s.toast}>
           <span>{toast.text}</span>
-          {day.canUndo && toast.text !== "Undone." && (
+          {day?.canUndo && toast.undoable && (
             <button
               type="button"
               onClick={() => {
-                day.undo();
-                setToast({ text: "Undone.", n: toast.n + 1 });
+                void day.undo().then((r) => {
+                  if (r.ok) setToast({ text: "Undone.", n: toast.n + 1, undoable: false });
+                  else if (!r.ignored) {
+                    setToast({ text: r.message, n: toast.n + 1, undoable: false });
+                  }
+                });
               }}
             >
               Undo

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { findIntegrityViolations } from "@/domain/records";
 import { deriveToday } from "@/domain/today";
@@ -40,19 +40,19 @@ describe("design exploration", () => {
     expect(screen.getAllByRole("heading").length).toBeGreaterThan(0);
   });
 
-  it("Briefing: approving a draft moves it to approved, and marking it sent clears it", () => {
+  it("Briefing: approving a draft moves it to approved, and marking it sent clears it", async () => {
     render(<Briefing.Today snapshot={snapshot} navigate={navigate} />);
     const before = screen.getAllByText(/is approved\./).length;
     fireEvent.click(screen.getByRole("button", { name: /Read and approve/ }));
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
-    expect(screen.getAllByText(/is approved\./)).toHaveLength(before + 1);
+    await waitFor(() => expect(screen.getAllByText(/is approved\./)).toHaveLength(before + 1));
 
     fireEvent.click(screen.getAllByRole("button", { name: /Mark as sent/ })[0]!);
-    expect(screen.getAllByText(/is approved\./)).toHaveLength(before);
+    await waitFor(() => expect(screen.getAllByText(/is approved\./)).toHaveLength(before));
     expect(screen.getByRole("list", { name: "Done today" })).toHaveTextContent(/^Sent/);
   });
 
-  it("Triage: J moves the selection and E completes the selected action", () => {
+  it("Triage: J moves the selection and E completes the selected action", async () => {
     render(<Triage.Today snapshot={snapshot} navigate={navigate} />);
     const options = () => screen.getAllByRole("option");
     expect(options()[0]).toHaveAttribute("aria-selected", "true");
@@ -63,7 +63,7 @@ describe("design exploration", () => {
     const count = options().length;
     fireEvent.click(options()[0]!); // an overdue follow-up: a next action
     fireEvent.keyDown(document, { key: "e" });
-    expect(options()).toHaveLength(count - 1);
+    await waitFor(() => expect(options()).toHaveLength(count - 1));
   });
 
   it("Focus: skipping brings the next item into focus", () => {
@@ -73,7 +73,7 @@ describe("design exploration", () => {
     expect(screen.getByText(`2 of ${total}`)).toBeInTheDocument();
   });
 
-  it("Focus: approving keeps your place, and Undo restores the draft", () => {
+  it("Focus: approving keeps your place, and Undo restores the draft", async () => {
     render(<Focus.Today snapshot={snapshot} navigate={navigate} />);
     fireEvent.click(screen.getByRole("button", { name: /Hannah Lindqvist.*Draft waiting/ }));
     expect(
@@ -82,13 +82,13 @@ describe("design exploration", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
     expect(
-      screen.getByRole("heading", { level: 2, name: /^Send your email to Hannah/ }),
+      await screen.findByRole("heading", { level: 2, name: /^Send your email to Hannah/ }),
     ).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/Approved/);
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(
-      screen.getByRole("heading", { level: 2, name: /^Approve your email to Hannah/ }),
+      await screen.findByRole("heading", { level: 2, name: /^Approve your email to Hannah/ }),
     ).toBeInTheDocument();
   });
 
@@ -277,17 +277,17 @@ describe("design exploration", () => {
     expect(screen.getByRole("button", { name: "Eleanor Marsh" })).toBeInTheDocument();
   });
 
-  it("Pursuing: acting on the next step runs the domain rule and offers Undo", () => {
+  it("Pursuing: acting on the next step runs the domain rule and offers Undo", async () => {
     render(<Focus.Opportunities snapshot={snapshot} navigate={navigate} />);
     fireEvent.click(screen.getByRole("button", { name: /^Summer engineering internship/ }));
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
-    expect(screen.getByRole("status")).toHaveTextContent(/^Approved/);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/^Approved/));
     expect(screen.getByRole("button", { name: "Mark as sent" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeInTheDocument();
   });
 
-  it("Outreach groups people by where their outreach stands, and approving moves a draft on", () => {
+  it("Outreach groups people by where their outreach stands, and approving moves a draft on", async () => {
     render(<Focus.Outreach snapshot={snapshot} navigate={navigate} />);
     const section = (name: RegExp) => screen.getByRole("region", { name });
     const write = within(section(/^To write/));
@@ -301,7 +301,9 @@ describe("design exploration", () => {
     fireEvent.click(
       within(section(/^Waiting for your approval/)).getByRole("button", { name: "Approve" }),
     );
-    expect(screen.queryByRole("region", { name: /^Waiting for your approval/ })).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: /^Waiting for your approval/ })).toBeNull(),
+    );
     expect(
       within(section(/^Approved, ready to send/)).getByRole("button", { name: "Hannah Lindqvist" }),
     ).toBeInTheDocument();
@@ -375,7 +377,7 @@ describe("design exploration", () => {
     expect(screen.getByRole("heading", { level: 1, name: "People" })).toBeInTheDocument();
   });
 
-  it("Focus mobile Outreach: one person at a time, and approving moves the draft on", () => {
+  it("Focus mobile Outreach: one person at a time, and approving moves the draft on", async () => {
     render(<Focus.OutreachMobile snapshot={snapshot} navigate={navigate} />);
     const approval = screen.getByRole("region", { name: "Waiting for your approval" });
     fireEvent.click(within(approval).getByRole("button", { name: /^Hannah Lindqvist/ }));
@@ -384,7 +386,7 @@ describe("design exploration", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
-    expect(screen.getByRole("button", { name: "Mark as sent" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Mark as sent" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back to Outreach" }));
     const ready = screen.getByRole("region", { name: "Approved, ready to send" });

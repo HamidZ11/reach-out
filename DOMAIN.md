@@ -32,17 +32,38 @@ Interpretation ──▶ subject, plus the SourceFacts it is based on (1..n)
 
 ## Cross-cutting rules
 
-**Ownership.** Single-user. Every record carries `userId`. A record may only reference records with the same owner. A `Repository` is created for one user, so no read can cross owners. There are no teams, workspaces or sharing.
+**Ownership.** Single-user. Every record carries `userId`. A record may only reference records with the same owner. A `Repository` is created for one signed-in user, so no read or write can cross owners. There are no teams or sharing.
 
-**Ids** are opaque, branded strings (`PersonId` cannot be passed as an `OpportunityId`).
+- In storage, a user's records live in their personal workspace (D-025). The database checks membership on every row, and references cannot cross workspaces.
+- A record's `userId` is the workspace's owner. In V1, that is always the signed-in user.
+
+**Ids** are opaque, branded strings (`PersonId` cannot be passed as an `OpportunityId`). Durable ids are random UUIDs, created by the application when a record is made (D-025). Seed data keeps its readable ids.
 
 **Time.** `CalendarDate` (`YYYY-MM-DD`, the user's local day) for deadlines and due dates; `Instant` (UTC ISO 8601) for when things happened. Domain functions never read the clock — callers pass `today` / `at`. `today` is computed at the boundary from `User.timeZone` (`calendarDateIn`).
 
 **Mutations** are pure functions that return a new, re-validated record (`approveDraft`, `completeNextAction`, …). They throw `DomainError` with a stable `code` when a rule is broken.
 
+- The server runs them, then saves the result through the Repository.
+- The database re-checks what must never be bypassed (D-027):
+  - the record is the user's;
+  - nobody changed it since it was read;
+  - the transition is allowed.
+- A screen shows a change only once it is saved.
+
+**Undo** (D-028) puts back exactly what one action changed, if nothing has changed those records since. It is a correction, not a lifecycle transition, so it is the one way to:
+
+- reopen a completed action;
+- move a snoozed one back;
+- return an approved draft to awaiting approval, or a sent one to approved, removing the `message_sent` it recorded and restoring the person's status;
+- remove a draft just written.
+
 ## User
 
 The account owner. Identity (sign-in) belongs to the auth provider; this is the product profile.
+
+- **On first sign-in** (D-026), the profile starts with the sign-in email and, as its name, the part of the address before the @, until the user changes it in Settings.
+- **Email** is the sign-in address. Settings shows it but does not change it.
+- **Time zone** is UTC until onboarding sets it from the browser; it is editable in Settings.
 
 - **Required:** `name`, `email`, `timeZone` (IANA).
 - **Optional:** `education` (institution, course, graduationYear); `goals` (objective, targetRoles, targetSectors, targetLocations — each list non-empty); `onboardingCompletedAt`.
@@ -208,14 +229,16 @@ Onboarding is a product flow, not a separate model. Its answers create ordinary 
 
 Because step 7 always creates an open next action, Today is never empty after onboarding.
 
+Finishing saves all of these, plus the user's time zone from the browser, in one transaction and only once: a second submission is refused, and nothing is duplicated (D-027).
+
 ## Deliberately not modelled
 
-| Concept                 | Why not                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------ |
-| Campaign, Sequence      | Volume tooling. Contradicts quality over volume.                                           |
-| Lead, Deal, Pipeline    | Sales framing. People are relationships; opportunity stages are not a sales funnel.        |
-| Workspace, Team         | Single-user product.                                                                       |
-| AnalyticsRecord, scores | No fake numbers. Success measures come from existing records.                              |
-| Task                    | NextAction is deliberately attached and narrow.                                            |
-| Thread / Conversation   | Outreach state derives per person. Revisit with Gmail threads (roadmap phase 7) if needed. |
-| Tags                    | No demonstrated need yet.                                                                  |
+| Concept                 | Why not                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| Campaign, Sequence      | Volume tooling. Contradicts quality over volume.                                                   |
+| Lead, Deal, Pipeline    | Sales framing. People are relationships; opportunity stages are not a sales funnel.                |
+| Workspace, Team         | Single-user product. Storage keeps one personal workspace per account, for isolation only (D-025). |
+| AnalyticsRecord, scores | No fake numbers. Success measures come from existing records.                                      |
+| Task                    | NextAction is deliberately attached and narrow.                                                    |
+| Thread / Conversation   | Outreach state derives per person. Revisit with Gmail threads (roadmap phase 7) if needed.         |
+| Tags                    | No demonstrated need yet.                                                                          |

@@ -4,6 +4,7 @@ import { createSeedDataset, SEED_USER_ID } from "@/data/seed/dataset";
 import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate } from "@/domain/time";
 import type { Workspace } from "@/features/workspace/records";
+import { createLocalActions } from "@/features/workspace/local-actions";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
 import { currentPath, syncSearchParamsWithHistory, visit } from "@/test/navigation";
 import { Companies } from "./companies";
@@ -42,7 +43,9 @@ beforeEach(() => {
 });
 
 function renderCompanies() {
-  const { container, unmount } = render(<Companies workspace={workspace} />);
+  const { container, unmount } = render(
+    <Companies workspace={workspace} actions={createLocalActions(workspace)} />,
+  );
   const layout = (name: "desktop" | "phone") => {
     const element = container.querySelector<HTMLElement>(`[data-layout="${name}"]`);
     if (!element) throw new Error(`No ${name} layout`);

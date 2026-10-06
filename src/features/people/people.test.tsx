@@ -1,9 +1,10 @@
-import { act, fireEvent, render, within } from "@testing-library/react";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSeedDataset, SEED_USER_ID } from "@/data/seed/dataset";
 import { createSeedRepository } from "@/data/seed/seed-repository";
 import { calendarDate } from "@/domain/time";
 import type { Workspace } from "@/features/workspace/records";
+import { createLocalActions } from "@/features/workspace/local-actions";
 import { loadWorkspace } from "@/features/workspace/load-workspace";
 import { currentPath, syncSearchParamsWithHistory, visit } from "@/test/navigation";
 import { People } from "./people";
@@ -59,7 +60,9 @@ function layOutWhy({ overflows }: { overflows: boolean }) {
 }
 
 function renderPeople() {
-  const { container, unmount } = render(<People workspace={workspace} />);
+  const { container, unmount } = render(
+    <People workspace={workspace} actions={createLocalActions(workspace)} />,
+  );
   const layout = (name: "desktop" | "phone") => {
     const element = container.querySelector<HTMLElement>(`[data-layout="${name}"]`);
     if (!element) throw new Error(`No ${name} layout`);
@@ -170,7 +173,7 @@ describe("production People — desktop", () => {
     expect(within(list).getByText("No one matches “astronaut”.")).toBeInTheDocument();
   });
 
-  it("leads with why they matter, then the next step, with Today's actions", () => {
+  it("leads with why they matter, then the next step, with Today's actions", async () => {
     const { desktop } = renderPeople();
     const why = desktop.getByRole("region", { name: "Why Daniel matters" });
     const daniel = workspace.people.find((p) => p.name === "Daniel Mensah");
@@ -188,8 +191,10 @@ describe("production People — desktop", () => {
       desktop.getByText(/Due in 4 days · Fri 9 Oct · appears in Today nearer the time/),
     ).toBeInTheDocument();
     fireEvent.click(desktop.getByRole("button", { name: "Mark done" }));
-    expect(desktop.getByRole("status")).toHaveTextContent(
-      "Done: Follow up with Dr Marsh about placements.",
+    await waitFor(() =>
+      expect(desktop.getByRole("status")).toHaveTextContent(
+        "Done: Follow up with Dr Marsh about placements.",
+      ),
     );
     expect(desktop.getByText("Nothing planned yet.")).toBeInTheDocument();
 
@@ -201,12 +206,12 @@ describe("production People — desktop", () => {
     ).toBeInTheDocument();
   });
 
-  it("a draft waiting on People is the same draft Today shows, approved the same way", () => {
+  it("a draft waiting on People is the same draft Today shows, approved the same way", async () => {
     const { desktop } = renderPeople();
     fireEvent.click(desktop.getByRole("button", { name: /^Hannah Lindqvist/ }));
     expect(desktop.getByText("Approve your email to Hannah")).toBeInTheDocument();
     fireEvent.click(desktop.getByRole("button", { name: "Approve" }));
-    expect(desktop.getByText("Send your email to Hannah")).toBeInTheDocument();
+    expect(await desktop.findByText("Send your email to Hannah")).toBeInTheDocument();
     expect(desktop.getByRole("status")).toHaveTextContent(/^Approved/);
     expect(desktop.getByRole("button", { name: /^Hannah Lindqvist/ })).toHaveTextContent(
       /To send$/,
@@ -485,10 +490,11 @@ describe("production People — the person in the URL", () => {
     );
   });
 
-  it("the session survives moving between people: an approval stays approved", () => {
+  it("moving between people keeps what was saved: an approval stays approved", async () => {
     const { desktop } = renderPeople();
     fireEvent.click(desktop.getByRole("button", { name: /^Hannah Lindqvist/ }));
     fireEvent.click(desktop.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(desktop.getByRole("status")).toHaveTextContent(/^Approved/));
     fireEvent.click(desktop.getByRole("button", { name: /^Grace Whitfield/ }));
     fireEvent.click(desktop.getByRole("button", { name: /^Hannah Lindqvist/ }));
     expect(desktop.getByText("Send your email to Hannah")).toBeInTheDocument();

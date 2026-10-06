@@ -14,6 +14,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
+    // Database tests need the local Supabase; they run with `pnpm test:db`.
+    exclude: ["src/**/*.db.test.ts", "**/node_modules/**"],
     setupFiles: ["./src/test/setup.ts"],
     restoreMocks: true,
     unstubEnvs: true,

@@ -1,0 +1,33 @@
+/*
+ * Sign in sits in onboarding's frame (onboarding.module.css) with one change:
+ * a single, narrower sheet sized to its content, since there is no workspace
+ * preview beside it. No new colours, type or radii.
+ */
+
+.top {
+  max-width: 560px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sheet {
+  max-width: 560px;
+  max-height: none;
+  flex: 0 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The mark stays on phones too: on this page it is the only thing that says where you are. */
+@container onboarding (max-width: 640px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr);
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 8px;
+  }
+
+  .brand {
+    display: inline-flex;
+  }
+
+  .sheet {
+    flex: 1 1 auto;
+  }
+}

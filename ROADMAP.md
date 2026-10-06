@@ -8,18 +8,18 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 - Companies ships with Opportunities (4), because every opportunity creates or links a company.
 - Phases 2–5 need writes before a database exists. They use an in-memory repository that is clearly non-durable and resets on restart. That is acceptable because nothing is deployed before phase 6.
 
-| Phase | Name                          | Status                                                                                              |
-| ----- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
-| 0     | Foundation                    | Done                                                                                                |
-| 1     | Visual design exploration     | Done                                                                                                |
-| 2     | Onboarding + first write path | **In progress**: onboarding UI built (session-only); the first write path is next                   |
-| 3     | Today + People                | **In progress**: shell, Today and People built and approved; adding and editing people not started  |
-| 4     | Opportunities + Companies     | **Done**: Pursuing and Companies built and approved                                                 |
-| 5     | Outreach & correspondence     | **In progress**: Outreach view built and approved; logging replies and closing outreach not started |
-| 6     | Accounts & persistence        | Settings UI built and approved (session-only); accounts and persistence not started                 |
-| 7     | Gmail integration             | Not started                                                                                         |
-| 8     | Polish & launch preparation   | Not started                                                                                         |
-| 9     | Outreach intelligence         | Future                                                                                              |
+| Phase | Name                          | Status                                                                                                                                                  |
+| ----- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Foundation                    | Done                                                                                                                                                    |
+| 1     | Visual design exploration     | Done                                                                                                                                                    |
+| 2     | Onboarding + first write path | **In progress**: onboarding built and saved once (phase 6); Playwright not started                                                                      |
+| 3     | Today + People                | **In progress**: shell, Today and People built, approved and saved; adding and editing people not started                                               |
+| 4     | Opportunities + Companies     | **Done**: Pursuing and Companies built and approved                                                                                                     |
+| 5     | Outreach & correspondence     | **In progress**: Outreach built and approved; the approval gate is saved and enforced by the database; logging replies and closing outreach not started |
+| 6     | Accounts & persistence        | **Built, not deployed**: sign-in, durable data and RLS done and verified locally; deployment and account deletion not done                              |
+| 7     | Gmail integration             | Not started                                                                                                                                             |
+| 8     | Polish & launch preparation   | Not started                                                                                                                                             |
+| 9     | Outreach intelligence         | Future                                                                                                                                                  |
 
 ## 0 · Foundation (done)
 
@@ -120,23 +120,26 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 
 **Objective:** real users, real data, deployed.
 
-**Scope:**
+**Scope, and where it stands:**
 
-- Supabase Auth: sign-in and callback routes, and `getSession()` wired to the provider.
-- First-run `User` creation, and routing to onboarding until it is complete.
-- A Postgres schema mirroring the domain, with RLS on `user_id`.
-- A Postgres `Repository`.
-- Settings: goals, profile, time zone.
-- Account deletion.
-- A preview deployment.
-- Decide `cacheComponents` (D-018).
+- **Done:**
+  - Supabase Auth by email link (D-026): sign-in, the confirm route, sign-out, the proxy, and `getSession()` on the provider;
+  - first sign-in creates the profile and a personal workspace (D-025), and routing goes to onboarding until it is complete;
+  - a Postgres schema mirroring the domain, with RLS on workspace membership, writes only through database functions (D-027), and durable Undo (D-028);
+  - a Supabase `Repository`, and Server Actions for every existing action, Settings and onboarding;
+  - Settings: profile, goals and time zone, saved;
+  - `cacheComponents` decided: off (D-029).
+- **Not done:**
+  - account deletion (Settings says "Not available yet");
+  - a preview deployment (docs/launch-checklist.md);
+  - human visual review of the sign-in page, the error page and the Settings additions (Account row, read-only email).
 
 **Acceptance:**
 
-- Loader tests pass against both repositories.
-- A test proves that two users cannot see each other's records.
-- Production no longer fails closed.
-- No secrets in the repository.
+- Loader tests pass against both repositories. Done: the Repository contract runs on both.
+- A test proves that two users cannot see each other's records. Done: `src/data/supabase/isolation.db.test.ts` and `supabase/tests/access.test.sql`, against the local stack.
+- Production no longer fails closed. Done when configured; unconfigured it still fails closed.
+- No secrets in the repository. Done.
 
 ## 7 · Gmail integration
 

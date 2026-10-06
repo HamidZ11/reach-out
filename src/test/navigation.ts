@@ -38,6 +38,18 @@ export function usePathname() {
   );
 }
 
+/** Router navigation, as history entries over the jsdom URL. */
+export function useRouter() {
+  return {
+    push: (href: string) => window.history.pushState(null, "", href),
+    replace: (href: string) => window.history.replaceState(null, "", href),
+    back: () => window.history.back(),
+    forward: () => window.history.forward(),
+    refresh: () => undefined,
+    prefetch: () => undefined,
+  };
+}
+
 let synced = false;
 
 /** Make pushState and replaceState announce themselves, as Next.js's router does. */

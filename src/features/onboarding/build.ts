@@ -27,13 +27,17 @@ const TYPE_FOR: Record<Objective, OpportunityType> = {
  * Onboarding's outcome as real domain records (DOMAIN.md › Onboarding →
  * records): goals on the user, one company per organisation (matched by name
  * key), one opportunity, one person linked to it, and one open next action.
- * Every record goes through the domain schemas, so the Today that follows is
- * derived exactly as it will be once these are saved.
+ * Every record goes through the domain schemas before anything is saved;
+ * `completeOnboardingStep` persists them, all at once.
  *
- * NOT SAVED. Until the Repository gains writes (ROADMAP phase 2, with accounts
- * in phase 6), the result lives for this session only.
+ * Ids are new random UUIDs (`newId`), so the records can reference each other
+ * before they are written.
  */
-export function buildWorkspace(a: Answers, base: OnboardingBase): Workspace {
+export function buildWorkspace(
+  a: Answers,
+  base: OnboardingBase,
+  newId: () => string = () => crypto.randomUUID(),
+): Workspace {
   const { now, today, user } = base;
   const owned = { userId: user.id, createdAt: now, updatedAt: now };
   const step = a.action === undefined ? undefined : firstSteps(a)[a.action];
@@ -44,7 +48,7 @@ export function buildWorkspace(a: Answers, base: OnboardingBase): Workspace {
     const existing = companies.find((c) => companyNameKey(c.name) === companyNameKey(name));
     if (existing) return existing;
     const company = CompanySchema.parse({
-      id: `onboarding_company_${companies.length + 1}`,
+      id: newId(),
       name: name.trim(),
       ...owned,
     });
@@ -57,7 +61,7 @@ export function buildWorkspace(a: Answers, base: OnboardingBase): Workspace {
   const personCompany = personCompanyName ? companyFor(personCompanyName) : undefined;
 
   const person = PersonSchema.parse({
-    id: "onboarding_person",
+    id: newId(),
     name: a.personName.trim(),
     role: a.personRole.trim() || undefined,
     companyId: personCompany?.id,
@@ -68,7 +72,7 @@ export function buildWorkspace(a: Answers, base: OnboardingBase): Workspace {
   });
 
   const opportunity = OpportunitySchema.parse({
-    id: "onboarding_opportunity",
+    id: newId(),
     title: a.opportunityTitle.trim(),
     companyId: opportunityCompany.id,
     status: "identified",
@@ -80,7 +84,7 @@ export function buildWorkspace(a: Answers, base: OnboardingBase): Workspace {
   });
 
   const nextAction = NextActionSchema.parse({
-    id: "onboarding_action",
+    id: newId(),
     kind: step.kind,
     title: step.title,
     personId: step.withPerson ? person.id : undefined,

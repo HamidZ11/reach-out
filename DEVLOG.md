@@ -2,6 +2,62 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-06 · Accounts and durable persistence
+
+On `feat/auth-persistence`. Reachout now has real accounts and keeps what you do. Nothing was redesigned. Gmail, AI and deployment were not started.
+
+- **Sign-in (D-026):**
+  - by email link through Supabase Auth, with httpOnly session cookies and no browser Supabase client;
+  - `/sign-in` and `/auth/confirm` are new; sign-out lives in Settings;
+  - the proxy refreshes sessions and sends signed-out visits to sign in, remembering where they were going (only paths inside Reachout);
+  - every read and write still checks the session on the server;
+  - `REACHOUT_DEV_SEED=true` keeps the seed student for development; production refuses it, and unconfigured it fails closed.
+- **Storage (D-025, D-027):**
+  - Supabase Postgres in three migrations: accounts and workspaces, the domain's records, and the workflow functions;
+  - every record lives in the account's personal workspace, with composite foreign keys, check constraints mirroring the Zod schemas, and RLS on every table;
+  - the Data API can read (RLS decides what) but never write;
+  - every write is one database function, run by a role that can't bypass RLS, which re-checks ownership, the caller's version and the transition;
+  - durable ids are UUIDs.
+- **What persists:**
+  - onboarding, saved once and atomically;
+  - Settings' profile, goals and time zone;
+  - every action on Today, People, Pursuing and Outreach: complete, snooze, write, edit, approve and mark sent.
+- **The approval gate** holds in the database: an unapproved draft can't become sent, an edit always resets approval, and marking sent twice records one message.
+- **Undo (D-028):** puts back exactly what an action changed, if nothing has changed since.
+- **First sign-in:** creates exactly one profile and workspace, however many requests race.
+- **Honest screens:**
+  - an action changes the screen only once it is saved;
+  - a failure says so, without Undo;
+  - Settings says "Saved.";
+  - a page that can't load shows a calm error page with "Try again";
+  - Supabase calls time out after 10 seconds.
+- **Small UI changes, for truth only:**
+  - Settings shows the email read-only (it is the sign-in address), adds an Account row with Sign out, and "Delete your account" now says "Not available yet";
+  - onboarding's arrival says "You're set up";
+  - the sign-in and error pages reuse onboarding's frame.
+  - These all await visual review.
+- **Not built:** account deletion, changing the sign-in email, rate limiting beyond Supabase's own, and Playwright.
+
+**Verified:**
+
+- `pnpm check`: format, lint, typecheck, 274 unit and component tests, and the build.
+- `pnpm test:db`: 20 tests against the local Supabase, with accounts signed in by real email links:
+  - the Repository contract (12, the same suite the in-memory repository passes);
+  - two-account isolation through the Data API (reads, reads by id, every write function, direct writes to all 13 tables, signed out);
+  - racing first sign-ins and onboarding submissions.
+- `pnpm db:test`: 12 pgTAP checks inside Postgres.
+- Headless Chrome, DOM only, on a production build and on the dev server against the local stack: 49 checks each. They covered:
+  - sign-in through Mailpit, onboarding, and reload;
+  - Settings saved;
+  - draft → approve → edit resets → approve → mark sent, with history after reload;
+  - Undo, complete and snooze;
+  - deep links, including another account's id and a malformed one;
+  - phone widths and the four-tab bar;
+  - sign-out, and signing back in to a deep link.
+- 7 more checks stopped the Data API mid-session: a save failed calmly and nothing moved; the page showed the error page, and "Try again" recovered.
+
+**Not verified:** anything on a hosted Supabase project or a deployment (see docs/launch-checklist.md), real email delivery, and real phones.
+
 ## 2026-10-06 · Onboarding in production; every UI surface built
 
 On `feat/production-onboarding`. `/onboarding` now runs the approved flow in place of the placeholder. It reproduces the C prototype; nothing was redesigned. Every production UI surface is now built.

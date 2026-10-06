@@ -9,23 +9,25 @@ import { GoalsSchema, OBJECTIVES, UserSchema } from "@/domain/user";
 import { SettingsLink } from "@/features/people/people-phone";
 import pp from "@/features/people/people.module.css";
 import { SECTIONS } from "@/features/sections";
-import type { Announce } from "@/features/today/item-actions";
 import { useAnnouncer } from "@/features/today/item-actions";
 import t from "@/features/today/today.module.css";
 import { OBJECTIVE_OPTIONS } from "@/features/workspace/goals";
+import { problemMessage } from "@/features/workspace/outcome";
 import type { Workspace } from "@/features/workspace/records";
-import { useWorkspace } from "@/features/workspace/use-workspace";
+import type { SettingsActions, SettingsOutcome } from "./operations";
 import k from "./settings.module.css";
 
 /**
  * Settings: your profile and what you're aiming for. Things Reachout can't do
  * yet are marked plainly rather than shown as controls that do nothing.
  *
- * Changes last for this session only, and say so: the Repository gains writes
- * with accounts (ROADMAP phase 6). A reload shows the saved profile again.
+ * Changes are saved to your account before Settings says so.
  */
 
-const SAVED = "Saved for this session.";
+const SAVED = "Saved.";
+
+/** Who is signed in, and how to sign out (absent in the development seed session). */
+export type Account = { email: string; signOut?: () => Promise<void> };
 
 /** Both layouts render; ids are prefixed per layout so each stays unique. */
 const IdPrefix = createContext("");
@@ -91,7 +93,6 @@ type ProfileForm = {
 
 const PROFILE_HELP: Record<string, string> = {
   name: "Add your name.",
-  email: "That doesn't look like an email address.",
   education: "Add your university, course and graduation year, or leave all three empty.",
   graduationYear: "Use a year, like 2028.",
   timeZone: "Choose a time zone.",
@@ -130,9 +131,17 @@ function useZones(): readonly string[] {
   return useSyncExternalStore(unchanging, browserZones, () => NO_ZONES);
 }
 
-function ProfileSection({ user, onSave }: { user: User; onSave: (user: User) => void }) {
+function ProfileSection({
+  user,
+  onSave,
+}: {
+  user: User;
+  /** Resolves once saved, or not. */
+  onSave: (user: User) => Promise<boolean>;
+}) {
   const [form, setForm] = useState<ProfileForm>(() => profileOf(user));
   const [problems, setProblems] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
   const dirty = JSON.stringify(form) !== JSON.stringify(profileOf(user));
   const known = useZones();
   const zoneOptions = known.includes(form.timeZone) ? known : [form.timeZone, ...known];
@@ -144,7 +153,6 @@ function ProfileSection({ user, onSave }: { user: User; onSave: (user: User) => 
     const result = UserSchema.safeParse({
       ...user,
       name: form.name,
-      email: form.email.trim(),
       timeZone: form.timeZone,
       education: anyEducation
         ? {
@@ -170,13 +178,20 @@ function ProfileSection({ user, onSave }: { user: User; onSave: (user: User) => 
       return;
     }
     setProblems({});
-    onSave(result.data);
+    setSaving(true);
+    void onSave(result.data).finally(() => setSaving(false));
   };
 
   const field = (
     key: keyof ProfileForm,
     label: string,
-    props: { type?: string; inputMode?: "numeric" | "email"; autoComplete?: string } = {},
+    props: {
+      type?: string;
+      inputMode?: "numeric" | "email";
+      autoComplete?: string;
+      readOnly?: boolean;
+      "aria-describedby"?: string;
+    } = {},
     problemKey: string = key,
   ) => (
     <div className={k.field}>
@@ -192,6 +207,11 @@ function ProfileSection({ user, onSave }: { user: User; onSave: (user: User) => 
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
         {...props}
       />
+      {props["aria-describedby"] && (
+        <p id={props["aria-describedby"]} className={k.fieldHint}>
+          You sign in with this address.
+        </p>
+      )}
     </div>
   );
 
@@ -204,8 +224,12 @@ function ProfileSection({ user, onSave }: { user: User; onSave: (user: User) => 
       <div className={k.fields}>
         {field("name", "Name", { autoComplete: "name" })}
         <Problem id={idOf("name-problem")} text={problems.name} />
-        {field("email", "Email", { type: "email", inputMode: "email", autoComplete: "email" })}
-        <Problem id={idOf("email-problem")} text={problems.email} />
+        {field("email", "Email", {
+          type: "email",
+          autoComplete: "email",
+          readOnly: true,
+          "aria-describedby": idOf("email-hint"),
+        })}
         <div className={k.pair}>
           {field("institution", "University", { autoComplete: "organization" }, "education")}
           {field("course", "Course", {}, "education")}
@@ -234,7 +258,12 @@ function ProfileSection({ user, onSave }: { user: User; onSave: (user: User) => 
       </div>
       {dirty && (
         <div className={k.saveBar}>
-          <button type="button" className={`${t.primary} ${t.small}`} onClick={save}>
+          <button
+            type="button"
+            className={`${t.primary} ${t.small}`}
+            onClick={save}
+            disabled={saving}
+          >
             Save changes
           </button>
           <button
@@ -342,7 +371,13 @@ function TargetEditor({
   );
 }
 
-function GoalsSection({ user, onSave }: { user: User; onSave: (goals: Goals) => void }) {
+function GoalsSection({
+  user,
+  onSave,
+}: {
+  user: User;
+  onSave: (goals: Goals) => Promise<boolean>;
+}) {
   const goals = user.goals;
   const [editing, setEditing] = useState<ListKey | "objective" | null>(null);
   if (!goals) {
@@ -359,8 +394,11 @@ function GoalsSection({ user, onSave }: { user: User; onSave: (goals: Goals) => 
 
   const commit = (patch: Partial<Goals>) => {
     const result = GoalsSchema.safeParse({ ...goals, ...patch });
-    if (result.success) onSave(result.data);
-    setEditing(null);
+    if (!result.success) return;
+    // The editor stays open until the change is saved.
+    void onSave(result.data).then((saved) => {
+      if (saved) setEditing(null);
+    });
   };
   const objective = OBJECTIVE_OPTIONS.find((o) => o.value === goals.objective);
 
@@ -496,7 +534,7 @@ function Boundaries() {
           <div className={k.def}>
             <dt className={k.defTerm}>Delete your account</dt>
             <dd className={k.defValue}>
-              <Later>Arrives with accounts</Later>
+              <Later />
             </dd>
           </div>
         </dl>
@@ -505,32 +543,76 @@ function Boundaries() {
   );
 }
 
+/** Signed in as you; sign out here. In the development seed session there is no sign-in. */
+function AccountSection({ account }: { account: Account }) {
+  const [leaving, setLeaving] = useState(false);
+  const { signOut } = account;
+  return (
+    <Section id="settings-account" title="Account" description="How you sign in.">
+      <dl className={k.defs}>
+        <div className={k.def}>
+          <dt className={k.defTerm}>Signed in as</dt>
+          <dd className={k.defValue}>
+            {signOut ? (
+              account.email
+            ) : (
+              <span className={k.plain}>
+                The development seed session. Nothing here is saved for good.
+              </span>
+            )}
+          </dd>
+          {signOut && (
+            <button
+              type="button"
+              className={`${t.text} ${t.small}`}
+              disabled={leaving}
+              onClick={() => {
+                setLeaving(true);
+                void signOut().finally(() => setLeaving(false));
+              }}
+            >
+              Sign out
+            </button>
+          )}
+        </div>
+      </dl>
+    </Section>
+  );
+}
+
 function SettingsBody({
   user,
-  setUser,
-  announce,
+  account,
+  actions,
+  save,
 }: {
   user: User;
-  setUser: (u: User) => void;
-  announce: Announce;
+  account: Account;
+  actions: SettingsActions;
+  /** Saves, then says how it went. Resolves true once saved. */
+  save: (change: () => Promise<SettingsOutcome>) => Promise<boolean>;
 }) {
   return (
     <>
       <ProfileSection
         user={user}
-        onSave={(next) => {
-          setUser(next);
-          announce(SAVED);
-        }}
+        onSave={(next) =>
+          save(() =>
+            actions.saveProfile({
+              name: next.name,
+              timeZone: next.timeZone,
+              education: next.education ?? null,
+              expected: user.updatedAt,
+            }),
+          )
+        }
       />
       <GoalsSection
         user={user}
-        onSave={(goals) => {
-          setUser({ ...user, goals });
-          announce(SAVED);
-        }}
+        onSave={(goals) => save(() => actions.saveGoals({ goals, expected: user.updatedAt }))}
       />
       <Boundaries />
+      <AccountSection account={account} />
     </>
   );
 }
@@ -540,15 +622,36 @@ function SettingsBody({
  * your avatar on a phone (never a tab). Both compositions render and CSS shows
  * the one that fits; they share the profile and one announcer.
  */
-export function Settings({ workspace }: { workspace: Workspace }) {
-  const day = useWorkspace(workspace);
-  const { announce, view: toast } = useAnnouncer(day);
-  const [user, setUserState] = useState(workspace.user);
+export function Settings({
+  workspace,
+  actions,
+  account,
+}: {
+  workspace: Workspace;
+  /** Server Actions in production. */
+  actions: SettingsActions;
+  account: Account;
+}) {
+  const { announce, view: toast } = useAnnouncer(undefined);
+  const [user, setUser] = useState(workspace.user);
   // A save in one layout resets the other's form to what was saved.
   const [version, setVersion] = useState(0);
-  const setUser = (next: User) => {
-    setUserState(next);
+
+  const save = async (change: () => Promise<SettingsOutcome>) => {
+    let result: SettingsOutcome;
+    try {
+      result = await change();
+    } catch {
+      result = { ok: false, problem: "unavailable" };
+    }
+    if (!result.ok) {
+      announce(problemMessage(result.problem), { undoable: false });
+      return false;
+    }
+    setUser(result.user);
     setVersion((v) => v + 1);
+    announce(SAVED);
+    return true;
   };
 
   return (
@@ -560,7 +663,13 @@ export function Settings({ workspace }: { workspace: Workspace }) {
               <h1 className={t.pageTitle}>Settings</h1>
               <span className={t.pageSub}>Your profile and what you&apos;re aiming for</span>
             </header>
-            <SettingsBody key={version} user={user} setUser={setUser} announce={announce} />
+            <SettingsBody
+              key={version}
+              user={user}
+              account={account}
+              actions={actions}
+              save={save}
+            />
             {toast}
           </div>
         </IdPrefix.Provider>
@@ -581,7 +690,13 @@ export function Settings({ workspace }: { workspace: Workspace }) {
           </header>
           <div className={t.mBody}>
             <div className={k.mSettings}>
-              <SettingsBody key={version} user={user} setUser={setUser} announce={announce} />
+              <SettingsBody
+                key={version}
+                user={user}
+                account={account}
+                actions={actions}
+                save={save}
+              />
             </div>
           </div>
           {toast}

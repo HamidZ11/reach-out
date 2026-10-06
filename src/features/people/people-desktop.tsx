@@ -8,7 +8,7 @@ import type { NextAction } from "@/domain/next-action";
 import type { Person } from "@/domain/person";
 import { DateTile, tileFor } from "@/features/today/date-tile";
 import type { Announce, Announcer } from "@/features/today/item-actions";
-import { ActionButton, useItemActions } from "@/features/today/item-actions";
+import { ActionButton, announceResult, useItemActions } from "@/features/today/item-actions";
 import { ContactActions, History, Standing, Status } from "@/features/today/person";
 import t from "@/features/today/today.module.css";
 import { headline, personState, stableKey } from "@/features/today/wording";
@@ -93,8 +93,9 @@ export function PlannedStep({
         type="button"
         className={`${t.secondary} ${t.small}`}
         onClick={() => {
-          day.complete(action.id);
-          announce(`Done: ${action.title}.`);
+          void day
+            .complete(action.id)
+            .then((r) => announceResult(r, announce, `Done: ${action.title}.`));
         }}
       >
         <Icon.Check size={15} weight={2} /> Mark done
