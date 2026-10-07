@@ -22,7 +22,7 @@ pnpm install
 pnpm db:start                      # local Supabase: Postgres, Auth, the Data API, and a mail catcher
 cp .env.example .env.local         # then set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY,
                                    # the API_URL and PUBLISHABLE_KEY that db:start prints
-pnpm dev                           # http://localhost:3000
+pnpm dev                           # http://localhost:3001
 ```
 
 **Signing in locally:**
