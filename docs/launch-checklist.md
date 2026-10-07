@@ -107,6 +107,8 @@ All server-only; none are `NEXT_PUBLIC_`. Set them per environment, never in the
 | `GMAIL_TOKEN_ENCRYPTION_KEY_PREVIOUS` | Only during a rotation | The previous key, so older tokens still open                                                               |
 | `REACHOUT_DEV_SEED`                   | Never                  | Development only; production refuses to serve with it set                                                  |
 
+The demo workspace (D-035) needs no setting. It keeps each visitor's demo in the server's memory, so on several instances a demo may start afresh between requests.
+
 - [ ] Serve over **https** on a custom domain. Cookies are `Secure`, `HttpOnly` and `SameSite=Lax` in production, and HSTS is sent.
 - [ ] After deploying, check:
   - a signed-out `/today` redirects to `/sign-in?next=%2Ftoday`;

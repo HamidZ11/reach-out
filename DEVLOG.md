@@ -2,6 +2,37 @@
 
 Newest first. One entry per working session: what changed, why, and what is next. Durable decisions go in DECISIONS.md, not here.
 
+## 2026-10-07 · V1 complete: landing page and demo workspace
+
+On `feat/final-demo`, from `main`. The final pass: a public landing page, and a demo anyone can open without an account. No product features, and no changes to approved surfaces beyond Settings' demo rows.
+
+- **Landing page (`/`):**
+  - public, and reads no session;
+  - a hero with "Try the demo" and "Sign in", "How it works" (seven steps, with approving and sending in the user's hands), three short points, and a closing call;
+  - built from the approved system only.
+  - Signing in now returns to `/today` by default, since `/` is no longer the app's entry.
+- **Demo workspace (D-035):**
+  - **Entry:** "Try the demo" sets a server-signed httpOnly cookie and lands on Today.
+  - **Records:** each demo gets its own in-memory copy of `createDemoDataset`: the seed, plus one recent conversation so Outreach's "In conversation" has someone. The seed is unchanged.
+  - **Boundary:** the demo never reaches Supabase, has no onboarding, and can't use Gmail.
+  - **Settings:** says "Demo workspace", with Reset demo and Exit demo.
+  - **Real sessions:** a real sign-in still uses Supabase, and signing in ends the demo.
+- **Docs:**
+  - README rewritten for GitHub visitors, with the demo first;
+  - ARCHITECTURE, DESIGN, ROADMAP (V1 COMPLETE) and CLAUDE updated.
+
+**Verified:**
+
+- **Static checks:** `pnpm format:check`, `lint`, `typecheck` and `test` (367 tests).
+- **Database:** `pnpm test:db` (41) and `pnpm db:test` (15).
+- **Also:** `pnpm build`, `pnpm audit --prod` and `git diff --check`.
+- **Production builds, headless DOM checks (no screenshots):**
+  - one with no Supabase configured: 53/53. Landing at 4 widths, every demo surface at 1440, 1024, 390 and 320, changes, reset, exit, a forged cookie, Gmail unavailable;
+  - one with the local Supabase: 62/62. The same, plus real sign-in, the landing staying public when signed in, demo and real records never mixing, and sign-out.
+  - No overflow, and no console errors outside the deliberately fail-closed pages.
+
+**Not done:** deployment (not wanted for V1), and the human's visual review of the landing page and the demo's Settings rows.
+
 ## 2026-10-07 · Release preparation: Gmail launch gate; hosted setup blocked on the human
 
 On `feat/gmail-launch`. The final release pass prepared everything that engineering alone can do. The hosted steps stopped where they need the human.

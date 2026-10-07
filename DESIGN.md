@@ -40,6 +40,19 @@ Visual-system exploration is **complete**. Every surface is approved on desktop 
 - **After returning from Google**, Settings says how connecting went, once.
 - **Sign-in:** a sixth request for one address in fifteen minutes is refused with "That's a lot of sign-in emails…".
 
+**Added in the final pass (V1), awaiting the human's visual review:**
+
+- **Landing page (`/`)**, the only new surface. Typographic and product-specific, built only from the approved system:
+  - the mark and wordmark;
+  - a two-column hero (headline in Bricolage, lead, "Try the demo" as the black primary action, "Sign in" as the secondary);
+  - "How it works" as a white sheet of seven numbered steps, with Approve and Send in brand blue and a brand-wash note that you send everything yourself;
+  - the three points as hairline rows on the canvas;
+  - a closing sheet with "Try the demo".
+
+  There are no logos, numbers, quotes or imagery. Below 880px the hero stacks; below 560px each step's words sit under its name.
+
+- **Settings › Account in the demo (D-035):** "Demo workspace", with Reset demo, and "Leave", with Exit demo. These use the existing definition rows and quiet text buttons. Gmail shows "Coming later". The app shell is unchanged: there is no demo badge.
+
 ## Design freeze
 
 Approved surfaces are not redesigned during implementation. A change needs one of these:

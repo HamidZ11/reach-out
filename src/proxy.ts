@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { authModeOrNull } from "@/server/config";
 import { contentSecurityPolicy } from "@/server/csp";
+import { DEMO_COOKIE, looksLikeDemo } from "@/server/demo-cookie";
+import { DEFAULT_NEXT } from "@/server/next-path";
 import { AUTH_COOKIE_OPTIONS, timedFetch } from "@/server/supabase";
 
 /**
@@ -13,7 +15,8 @@ import { AUTH_COOKIE_OPTIONS, timedFetch } from "@/server/supabase";
  * 2. Refreshes the Supabase session, writing renewed cookies on the response,
  *    so Server Components (which can't set cookies) see a valid session.
  * 3. Sends a signed-out page load to sign in, remembering where it was going,
- *    and a signed-in visit to /sign-in on to the app.
+ *    and a signed-in visit to /sign-in on to the app. The landing page is
+ *    public, and a browser in the demo (D-035) isn't sent to sign in.
  *
  * This is the optimistic check only. Every read and write still verifies the
  * session in the data access layer (`getRepository` → `requireSession`), and
@@ -53,22 +56,30 @@ export async function proxy(request: NextRequest) {
   });
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims?.sub);
+  // Optimistic, like the rest of this: the server checks the demo's signature.
+  const inDemo = looksLikeDemo(request.cookies.get(DEMO_COOKIE)?.value);
 
   const { pathname, search } = request.nextUrl;
   const navigation = request.method === "GET" || request.method === "HEAD";
-  if (navigation && !signedIn && !isPublic(pathname)) {
+  if (navigation && !signedIn && !inDemo && !isPublic(pathname)) {
     return secured(withCookies(response, redirectTo(request, "/sign-in", `${pathname}${search}`)));
   }
   if (navigation && signedIn && pathname === "/sign-in") {
-    return secured(withCookies(response, redirectTo(request, "/")));
+    return secured(withCookies(response, redirectTo(request, DEFAULT_NEXT)));
   }
   return secured(response);
 }
 
-/** Sign-in and its link, and the development-only design reference, need no session. */
+/**
+ * The landing page, sign-in and its link, and the development-only design
+ * reference need no session.
+ */
 function isPublic(pathname: string) {
   return (
-    pathname === "/sign-in" || pathname.startsWith("/auth/") || pathname.startsWith("/prototypes")
+    pathname === "/" ||
+    pathname === "/sign-in" ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/prototypes")
   );
 }
 
@@ -76,7 +87,7 @@ function redirectTo(request: NextRequest, path: string, next?: string) {
   const url = request.nextUrl.clone();
   url.pathname = path;
   url.search = "";
-  if (next && next !== "/") url.searchParams.set("next", next);
+  if (next && next !== DEFAULT_NEXT) url.searchParams.set("next", next);
   return NextResponse.redirect(url);
 }
 

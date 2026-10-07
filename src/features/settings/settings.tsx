@@ -27,8 +27,13 @@ import k from "./settings.module.css";
 
 const SAVED = "Saved.";
 
-/** Who is signed in, and how to sign out (absent in the development seed session). */
-export type Account = { email: string; signOut?: () => Promise<void> };
+/**
+ * Who is signed in, and how to sign out (absent in the development seed
+ * session); or the demo workspace (D-035), which can start again or be left.
+ */
+export type Account =
+  | { email: string; signOut?: () => Promise<void> }
+  | { demo: { reset: () => Promise<void>; exit: () => Promise<void> } };
 
 /** Both layouts render; ids are prefixed per layout so each stays unique. */
 const IdPrefix = createContext("");
@@ -647,6 +652,7 @@ function Boundaries({ gmail, timeZone }: { gmail: GmailControl; timeZone: string
 /** Signed in as you; sign out here. In the development seed session there is no sign-in. */
 function AccountSection({ account }: { account: Account }) {
   const [leaving, setLeaving] = useState(false);
+  if ("demo" in account) return <DemoSection demo={account.demo} />;
   const { signOut } = account;
   return (
     <Section id="settings-account" title="Account" description="How you sign in.">
@@ -675,6 +681,58 @@ function AccountSection({ account }: { account: Account }) {
               Sign out
             </button>
           )}
+        </div>
+      </dl>
+    </Section>
+  );
+}
+
+/** The demo workspace (D-035): said plainly, with starting again and leaving. */
+function DemoSection({
+  demo,
+}: {
+  demo: { reset: () => Promise<void>; exit: () => Promise<void> };
+}) {
+  const [busy, setBusy] = useState(false);
+  const run = (action: () => Promise<void>) => {
+    setBusy(true);
+    void action().finally(() => setBusy(false));
+  };
+  return (
+    <Section id="settings-account" title="Account" description="A demo, with no sign-in.">
+      <dl className={k.defs}>
+        <div className={k.def}>
+          <dt className={k.defTerm}>Demo workspace</dt>
+          <dd className={k.defValue}>
+            <span className={k.plain}>
+              A fictional student&apos;s workspace: the people, companies and messages are invented.
+              Your changes last for this visit only, and nothing is ever sent.
+            </span>
+          </dd>
+          <button
+            type="button"
+            className={`${t.text} ${t.small}`}
+            disabled={busy}
+            onClick={() => run(demo.reset)}
+          >
+            Reset demo
+          </button>
+        </div>
+        <div className={k.def}>
+          <dt className={k.defTerm}>Leave</dt>
+          <dd className={k.defValue}>
+            <span className={k.plain}>
+              Back to the start page. Your changes here are discarded.
+            </span>
+          </dd>
+          <button
+            type="button"
+            className={`${t.text} ${t.small}`}
+            disabled={busy}
+            onClick={() => run(demo.exit)}
+          >
+            Exit demo
+          </button>
         </div>
       </dl>
     </Section>

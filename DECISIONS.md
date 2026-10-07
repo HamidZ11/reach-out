@@ -410,3 +410,27 @@ V1 launches on the core loop with manual "Mark as sent". Gmail stays built but i
 - The Gmail code, schema and tests stay. Enabling it publicly is a configuration change after Google approves.
 
 **Why:** the launch shouldn't wait on an external review, and public users shouldn't be offered a flow Google hasn't approved.
+
+## D-035 · A demo workspace, without an account
+
+_2026-10-07 · Accepted_
+
+Anyone can try Reachout without signing in. "Try the demo" on the landing page opens a fictional student's workspace: the seed dataset plus one recent conversation (`createDemoDataset`). It is held in the server's memory, one copy per demo.
+
+- **Session:**
+  - a random demo id and its HMAC signature, in an httpOnly, `SameSite=Lax` cookie;
+  - the key is made when the server starts, so a cookie is good only for the server that issued it, until it restarts;
+  - a forged, altered or foreign cookie is no session;
+  - a query parameter or browser storage never decides it.
+- **Boundary:**
+  - the demo's user is always the fictional student;
+  - the demo id only chooses a copy of fictional records, and never names a user or workspace;
+  - `getRepository()` returns that copy and never constructs a Supabase client;
+  - Gmail is unavailable, and there is no onboarding.
+- **Changes:** they work for the visit and are never written anywhere durable. Reset demo starts again; Exit demo forgets the copy and clears the cookie. A copy idle for two hours, or past 200 at once, starts afresh.
+- **Precedence:** the demo comes first while it is chosen. A real sign-in ends it.
+- **Separate from `REACHOUT_DEV_SEED`:** that remains development-only and is refused in production. The demo needs no configuration and is safe in production because it reaches no real data.
+
+**Why:** the project should be explorable from GitHub in one click, without email, Supabase or setup, and without weakening real accounts.
+
+**Consequence:** on a host with several server instances, a demo's changes last only while requests reach the same instance; elsewhere it starts afresh. That is acceptable for a demo.

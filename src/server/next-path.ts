@@ -2,9 +2,10 @@
  * Where to go after signing in: only ever a path inside Reachout. Anything
  * that could leave the site (`//evil.example`, `https://…`, `/\evil`) or loop
  * back into sign-in becomes the default, so a crafted link can't redirect
- * anyone elsewhere.
+ * anyone elsewhere. The default is the app (Today, or onboarding until it's
+ * done), not the public landing page.
  */
-export const DEFAULT_NEXT = "/";
+export const DEFAULT_NEXT = "/today";
 
 const ORIGIN = "https://reachout.invalid";
 

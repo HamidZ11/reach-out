@@ -11,12 +11,15 @@ export const metadata: Metadata = { title: "Sign in" };
 
 /**
  * Public. Already signed in (or in the development seed session, which has no
- * sign-in)? Straight on. Unconfigured, `authMode` throws: it fails closed.
+ * sign-in)? Straight on. The demo (D-035) isn't a sign-in, so it can still
+ * sign in for real. Unconfigured, `authMode` throws: it fails closed.
  */
 export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
   await connection();
   const params = await searchParams;
   const next = safeNextPath(params.next);
-  if (authMode().kind !== "supabase" || (await getSession())) redirect(next as Route);
+  if (authMode().kind !== "supabase") redirect(next as Route);
+  const session = await getSession();
+  if (session && session.method !== "demo") redirect(next as Route);
   return <SignIn next={next} linkFailed={params.error === "link"} request={requestSignInLink} />;
 }

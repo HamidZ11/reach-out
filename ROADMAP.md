@@ -18,14 +18,20 @@ Each phase ends with its acceptance criteria met **and** human approval of anyth
 | 5     | Outreach & correspondence     | **In progress**: Outreach built and approved; the approval gate is saved and enforced by the database; logging replies and closing outreach not started |
 | 6     | Accounts & persistence        | **Built, not deployed**: sign-in, durable data and RLS done and verified locally; deployment and account deletion not done                              |
 | 7     | Gmail integration             | **Built, switched off for launch** (D-034): read-only tracking verified locally with Google faked; public enablement waits on Google verification       |
-| 8     | Polish & launch preparation   | **In progress**: hardening, launch gate and checklist done; hosted setup, deployment, accessibility audit and pilot pending (docs/launch-checklist.md)  |
+| 8     | Polish & launch preparation   | **Done for V1**: hardening, Gmail gate, landing page and demo workspace (D-035); hosted deployment, accessibility audit and pilot not done              |
 | 9     | Outreach intelligence         | Future                                                                                                                                                  |
 
-## V1 status
+## V1 status: COMPLETE
 
-- **Implementation is complete and verified locally:** every surface; accounts and persistence; Gmail (switched off for launch); hardening.
-- **Shipping needs hosted setup:** Supabase projects, Vercel, SMTP and a domain. See [docs/launch-checklist.md](docs/launch-checklist.md).
-- **After V1:**
+- **V1 is complete and verified locally:**
+  - every surface;
+  - accounts and persistence;
+  - Gmail (built, switched off, D-034);
+  - hardening;
+  - the public landing page;
+  - the demo workspace (D-035).
+- **Not deployed.** A hosted launch needs Supabase projects, a host, SMTP and a domain; [docs/launch-checklist.md](docs/launch-checklist.md) lists the steps.
+- **After V1 (not scheduled):**
   - public Gmail, once Google verifies the scope;
   - the remaining phase 3 and 5 items (adding and editing people, logging replies and meetings, closing outreach);
   - outreach intelligence (phase 9).

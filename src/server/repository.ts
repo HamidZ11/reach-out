@@ -10,6 +10,7 @@ import type { CalendarDate } from "@/domain/time";
 import { calendarDateIn } from "@/domain/time";
 import type { Session } from "./auth";
 import { requireSession } from "./auth";
+import { demoRepository } from "./demo";
 import { getSupabase } from "./supabase";
 
 /**
@@ -20,9 +21,12 @@ import { getSupabase } from "./supabase";
  *   workspace, which is created on first sign-in.
  * - The development seed session: the seed dataset in memory for this server
  *   process. Changes last until it restarts (or the day changes).
+ * - A demo session (D-035): that demo's own in-memory copy of the demo
+ *   dataset (fictional records). It never constructs a Supabase client.
  */
 export const getRepository = cache(async (): Promise<Repository> => {
   const session = await requireSession();
+  if (session.method === "demo") return demoRepository(session.demoId);
   if (session.method === "development") return developmentRepository();
   const supabase = await getSupabase();
   const workspaceId = await workspaceFor(supabase, session);
@@ -34,7 +38,10 @@ export const getRepository = cache(async (): Promise<Repository> => {
  * profile, the personal workspace and its membership in one idempotent call,
  * so racing first requests still make exactly one of each.
  */
-async function workspaceFor(supabase: ReachoutClient, session: Session): Promise<string> {
+async function workspaceFor(
+  supabase: ReachoutClient,
+  session: Extract<Session, { method: "supabase" }>,
+): Promise<string> {
   const { data, error } = await supabase
     .from("workspace_members")
     .select("workspace_id")

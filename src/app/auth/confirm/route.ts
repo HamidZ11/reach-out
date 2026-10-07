@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { authMode } from "@/server/config";
+import { endDemo } from "@/server/demo";
 import { NEXT_COOKIE, NEXT_COOKIE_OPTIONS } from "@/server/next-cookie";
 import { safeNextPath } from "@/server/next-path";
 import { getSupabase } from "@/server/supabase";
@@ -16,7 +17,8 @@ const LINK_TYPES: readonly EmailOtpType[] = ["email", "magiclink", "signup"];
  * supabase/templates, which works on any device) or a code (Supabase's default
  * link, same browser only) is exchanged for a session cookie. Then on to
  * where the user was going, checked to be a path inside Reachout; or back to
- * sign in, saying the link didn't work.
+ * sign in, saying the link didn't work. Signing in for real ends the demo
+ * (D-035), so the account's own records show.
  */
 export async function GET(request: NextRequest) {
   if (authMode().kind !== "supabase") redirect("/");
@@ -38,5 +40,6 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     signedIn = !error;
   }
+  if (signedIn) await endDemo();
   redirect(signedIn ? (next as Route) : "/sign-in?error=link");
 }

@@ -1,0 +1,292 @@
+/*
+ * The landing page, in the approved system (DESIGN.md › Landing page): the
+ * warm canvas, one white sheet for how it works, hairline rows on the canvas
+ * for what it does, and a closing sheet. Brand blue marks only the steps that
+ * are yours. No new colours, faces, radii or shadows.
+ */
+
+.page {
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 0 18px;
+}
+
+/* ——— Hero ——— */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: clamp(40px, 5vw, 72px);
+  padding: clamp(32px, 6vw, 72px) 0 clamp(48px, 7vw, 88px);
+}
+
+.heroText {
+  min-width: 0;
+}
+
+.title {
+  max-width: 16ch;
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(34px, 2.6vw + 14px, 50px);
+  font-weight: 650;
+  font-stretch: 94%;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.lead {
+  max-width: 34ch;
+  margin: 20px 0 0;
+  color: var(--ink-2);
+  font-size: clamp(17px, 0.4vw + 15px, 19px);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.form {
+  display: contents;
+}
+
+.note {
+  margin: 14px 0 0;
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+
+/* ——— How it works ——— */
+
+.flow {
+  min-width: 0;
+  padding: 22px 24px 20px;
+  border-radius: var(--r-xl);
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+}
+
+.flowTitle {
+  margin: 0 0 6px;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.steps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 22px 104px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.step:last-child {
+  border-bottom: 0;
+}
+
+.stepNumber {
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepName {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 650;
+  font-stretch: 94%;
+  letter-spacing: -0.01em;
+}
+
+.stepText {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.step[data-yours] .stepNumber,
+.step[data-yours] .stepName {
+  color: var(--brand-ink);
+}
+
+.flowNote {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--r-m);
+  background: var(--brand-wash);
+  color: var(--brand-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.flowDot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand);
+  translate: 0 -1px;
+}
+
+/* ——— What it does ——— */
+
+.points {
+  display: grid;
+  padding-bottom: clamp(40px, 6vw, 72px);
+}
+
+.point {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(16px, 4vw, 56px);
+  padding: 28px 0;
+  border-top: 1px solid var(--line-strong);
+}
+
+.pointTitle {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(22px, 0.6vw + 18px, 26px);
+  font-weight: 650;
+  font-stretch: 94%;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.pointBody {
+  display: grid;
+  gap: 8px;
+  max-width: 60ch;
+}
+
+.pointLead {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.pointText {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 15.5px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* ——— Closing ——— */
+
+.closing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px 40px;
+  padding: 32px 36px;
+  border-radius: var(--r-xl);
+  background: var(--sheet);
+  box-shadow: var(--shadow-border);
+}
+
+.closingText {
+  min-width: 0;
+}
+
+.closingTitle {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(22px, 0.6vw + 18px, 26px);
+  font-weight: 650;
+  font-stretch: 94%;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.closingLead {
+  max-width: 52ch;
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
+.closing button {
+  flex-shrink: 0;
+}
+
+.foot {
+  margin-top: auto;
+  padding: 32px 0 calc(32px + env(safe-area-inset-bottom, 0px));
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* ——— Narrower screens ——— */
+
+@media (max-width: 880px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .point {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 24px 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .flow {
+    padding: 18px 16px 16px;
+  }
+
+  /* The step's words go under its name, so neither is squeezed. */
+  .step {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 2px 10px;
+  }
+
+  .stepText {
+    grid-column: 2;
+  }
+
+  .closing {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 24px 20px;
+  }
+}

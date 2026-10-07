@@ -243,11 +243,35 @@ describe("production Settings", () => {
   });
 
   it("says who is signed in, and signs out from here", () => {
-    const { desktop, account } = renderSettings();
+    const signOut = vi.fn(() => Promise.resolve());
+    const { desktop } = renderSettings(workspace, {
+      account: { email: workspace.user.email, signOut },
+    });
     const section = within(desktop.getByRole("region", { name: "Account" }));
     expect(section.getByText(workspace.user.email)).toBeInTheDocument();
     fireEvent.click(section.getByRole("button", { name: "Sign out" }));
-    expect(account.signOut).toHaveBeenCalledOnce();
+    expect(signOut).toHaveBeenCalledOnce();
+  });
+
+  it("the demo workspace says it is one, and can start again or be left (D-035)", async () => {
+    const demo = { reset: vi.fn(() => Promise.resolve()), exit: vi.fn(() => Promise.resolve()) };
+    const { desktop, phone } = renderSettings(workspace, { account: { demo } });
+    for (const layout of [desktop, phone]) {
+      const section = within(layout.getByRole("region", { name: "Account" }));
+      expect(section.getByText("Demo workspace")).toBeInTheDocument();
+      expect(
+        section.getByText(/the people, companies and messages are invented/),
+      ).toBeInTheDocument();
+      expect(section.getByText(/nothing is ever sent/)).toBeInTheDocument();
+      // No account to sign out of.
+      expect(section.queryByRole("button", { name: "Sign out" })).toBeNull();
+    }
+    const section = within(desktop.getByRole("region", { name: "Account" }));
+    fireEvent.click(section.getByRole("button", { name: "Reset demo" }));
+    expect(demo.reset).toHaveBeenCalledOnce();
+    await waitFor(() => expect(section.getByRole("button", { name: "Exit demo" })).toBeEnabled());
+    fireEvent.click(section.getByRole("button", { name: "Exit demo" }));
+    expect(demo.exit).toHaveBeenCalledOnce();
   });
 
   it("the development seed session has no sign-out, and says it isn't saved for good", () => {

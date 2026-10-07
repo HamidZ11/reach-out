@@ -20,6 +20,8 @@ Scripts: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck` (`next typegen 
 ```
 src/
   app/          Routes only. Thin: read through src/server, render feature UI, hold the Server Actions.
+    page.tsx    Public: the landing page
+    demo/       The demo workspace's Server Actions: enter, reset, exit (D-035)
     (app)/      Signed-in area: today, people, opportunities, outreach, companies, settings; actions.ts
     onboarding/ Outside the app shell; its own Server Action
     sign-in/    Public: email-link sign-in
@@ -28,13 +30,13 @@ src/
   proxy.ts      Per-request CSP nonce, session refresh and optimistic redirects (Next's Proxy). Never the only check.
   domain/       Pure TypeScript: Zod schemas, types, rules, derivations. No I/O, no React, no clock.
   data/         The Repository interface and its implementations.
-    memory/     In-memory repository (tests, design references, the development seed session)
-    seed/       Seed dataset
+    memory/     In-memory repository (tests, design references, the development seed session, the demo)
+    seed/       Seed dataset, and the demo dataset built on it
     supabase/   The durable repository: row mapping, generated database types
   integrations/ Provider adapters, server-only. They translate; the rules stay in the domain.
     gmail/      OAuth (PKCE), the three Gmail reads, message mapping, and the sync
-  server/       Server-only composition: config, Supabase client, auth boundary, getRepository(), Gmail flows,
-                secret sealing, rate limits, CSP. The only place that picks a data source.
+  server/       Server-only composition: config, Supabase client, auth boundary, the demo session,
+                getRepository(), Gmail flows, secret sealing, rate limits, CSP. The only place that picks a data source.
   features/     Per product area: loaders and workflow steps (take a Repository), and that area's UI.
     shell/      The app shell: desktop rail, phone tab bar.
     workspace/  The user's records for the screens: loader, record index, state, workflow steps (operations.ts), actions contract (outcome.ts).
@@ -46,6 +48,7 @@ src/
     settings/   Settings: profile and goals (saved), Gmail, the account, and what isn't built yet, said plainly.
     onboarding/ Onboarding: seven questions, then the records they create, saved once, opening Today.
     sign-in/    Sign-in, in onboarding's frame.
+    landing/    The public landing page.
   components/   Shared presentational pieces: Avatar, icons, date wording.
   test/         Test setup, record builders, the Repository contract, database-test accounts.
 supabase/
@@ -114,7 +117,11 @@ Test files are exempt so they can use seed data as fixtures. Production code nev
 
 - [`createMemoryRepository`](src/data/memory/memory-repository.ts) holds a validated RecordSet, refuses inconsistent data (`findIntegrityViolations`), returns copies, and mirrors the database functions' checks: ownership, version, transition, once-only onboarding and exact undo.
 - [`createSeedDataset(anchor)`](src/data/seed/dataset.ts) builds a realistic fictional dataset: one student, 5 companies, 10 people, 6 opportunities, 14 interactions, 3 drafts, 8 next actions, plus facts and interpretations. Every date is relative to `anchor`.
-- **Used by:** tests, the design references (always the seed data, development only), and the development seed session (`REACHOUT_DEV_SEED=true`, never in production; it lasts until the server restarts).
+- **Used by:**
+  - tests;
+  - the design references (always the seed data, development only);
+  - the development seed session (`REACHOUT_DEV_SEED=true`, never in production; it lasts until the server restarts);
+  - the demo workspace (D-035): [`createDemoDataset`](src/data/seed/demo-dataset.ts), which is the seed plus one recent conversation, so every Outreach track has someone in it. The seed itself is unchanged.
 - No code may branch on seed names or ids.
 
 ## Persistence
@@ -160,9 +167,19 @@ Supabase Auth, signing in by email link (D-026). See [`src/server/auth.ts`](src/
   - `seed`: `REACHOUT_DEV_SEED=true`, development only, refused in production;
   - otherwise it throws `AuthNotConfiguredError`, so an unconfigured deployment serves nothing.
 - **Session:** `getSession()` verifies the JWT from the httpOnly cookies on the server (`getClaims`), and nothing the browser sends can choose the user. `requireSession()` redirects to `/sign-in` without one. `getRepository()` calls it, so every read and write is authenticated by construction.
+- **Demo session (D-035, [`src/server/demo.ts`](src/server/demo.ts)):**
+  - **Entering:** "Try the demo" (a Server Action) sets an httpOnly cookie holding a random demo id and its HMAC signature. The key is made when the server starts and never leaves it.
+  - **Recognition:** `getSession()` checks the signature first, and only a valid one is `{ method: "demo" }`. Anything forged, altered or from another server is no session.
+  - **Records:** the demo's user is always the fictional student. The id only chooses which in-memory copy of the demo dataset `getRepository()` returns, so it never reaches Supabase and is never a user or workspace id.
+  - **Limits:** copies are kept per demo for the visit; one idle for two hours, past 200 at once, or from an earlier day starts afresh.
+  - **Reset and exit:** Reset starts the copy again; Exit forgets it and clears the cookie.
+  - **Precedence:** a real sign-in through `/auth/confirm` ends the demo.
+  - **Gmail:** it needs `method: "supabase"`, so it is unavailable in the demo.
+  - **Configuration:** the demo needs none. It works without Supabase, and independently of `REACHOUT_DEV_SEED`.
 - **Proxy** ([`src/proxy.ts`](src/proxy.ts)):
   - refreshes the session cookies before rendering;
-  - sends signed-out page loads to `/sign-in?next=<path>`, and signed-in visits to `/sign-in` on to the app;
+  - sends signed-out page loads to `/sign-in?next=<path>`, and signed-in visits to `/sign-in` on to the app (`/today`);
+  - lets a browser with a demo-shaped cookie through (the server checks the signature);
   - skips static files;
   - is never the only check.
 - **Sign-in:**
@@ -171,10 +188,11 @@ Supabase Auth, signing in by email link (D-026). See [`src/server/auth.ts`](src/
   - `/auth/confirm` exchanges the link's token hash (or code) for a session, or returns to `/sign-in?error=link`.
 - **Sign-out:** a Server Action in Settings ends this browser's session.
 - **Routing:**
-  - `/` goes to `/onboarding` until onboarding is complete, then to `/today`;
-  - the app layout and the onboarding page make the same redirects;
+  - `/` is the public landing page; it reads no session;
+  - signing in returns to `/today` by default;
+  - the app layout sends you to `/onboarding` until it is complete, and the onboarding page back to `/today` after;
   - these redirects are routing, not security.
-- **Protected routes:** everything except `/sign-in`, `/auth/*` and the development-only `/prototypes`.
+- **Protected routes:** everything except `/`, `/sign-in`, `/auth/*` and the development-only `/prototypes`.
 - **Timeouts:** every Supabase call is abandoned after 10 seconds and reported as unavailable, so nothing hangs.
 
 ## Email integration: Gmail, read-only (D-031)

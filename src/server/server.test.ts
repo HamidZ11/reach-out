@@ -8,7 +8,7 @@ import { getRepository, provisionalName } from "./repository";
 
 // No request in a unit test: an empty cookie jar stands in for a signed-out browser.
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ getAll: () => [], set: () => undefined }),
+  cookies: async () => ({ get: () => undefined, getAll: () => [], set: () => undefined }),
   headers: async () => new Headers(),
 }));
 
